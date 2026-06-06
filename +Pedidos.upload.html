@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Ápice Sports</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#F2F3F5;--s1:#FFFFFF;--s2:#F7F8FA;--s3:#ECEEF1;--br:#E2E5EA;
+  --ink:#0D0F12;--mu:#8A909A;--dim:#C4C8D0;
+  --blue:#2563EB;--blue-lt:#EEF3FE;--blue-md:#BFCFFE;
+  --gr:#16A34A;--gr-lt:#DCFCE7;
+  --re:#DC2626;--re-lt:#FEE2E2;
+  --or:#EA580C;--or-lt:#FFF0E6;
+  --pu:#7C3AED;--pu-lt:#EDE9FE;
+  --gold:#C9A84C;--gold-lt:#FEF9EC;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --sh-md:0 4px 12px rgba(0,0,0,.10),0 2px 4px rgba(0,0,0,.06);
+}
+body{background:var(--bg);color:var(--ink);font-family:'Sora',sans-serif;-webkit-font-smoothing:antialiased;}
+input,select,textarea,button{font-family:'Sora',sans-serif;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:var(--s3);}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px;}
+input[type=date]::-webkit-calendar-picker-indicator{filter:none;opacity:.5;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.96)}100%{transform:scale(1)}}
+
+/* ── LAYOUT ── */
+#hdr{background:var(--s1);border-bottom:1px solid var(--br);padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:fixed;top:0;left:0;right:0;z-index:300;max-width:700px;margin:0 auto;
+  box-shadow:var(--sh);}
+#tabs{background:var(--s1);border-top:1px solid var(--br);
+  display:flex;position:fixed;bottom:0;left:0;right:0;z-index:299;
+  max-width:700px;margin:0 auto;box-shadow:0 -1px 0 var(--br);}
+body{padding-top:64px;padding-bottom:72px;}
+.page{display:none;max-width:700px;margin:0 auto;padding:16px 16px 24px;animation:fadeUp .18s ease both;}
+.page.active{display:block;}
+
+/* ── HEADER ── */
+#bkBtn{display:none;background:none;border:none;color:var(--mu);font-size:20px;cursor:pointer;
+  padding:0 6px;line-height:1;margin-right:4px;}
+.logo{font-family:'Sora',sans-serif;font-size:15px;color:var(--ink);font-weight:800;
+  letter-spacing:-.02em;}
+.logo span{color:var(--blue);}
+#hdrSub{font-size:10px;color:var(--mu);letter-spacing:.06em;text-transform:uppercase;margin-left:8px;font-weight:500;}
+
+/* ── TABS (bottom nav) ── */
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:10px 4px 8px;background:none;border:none;border-top:2px solid transparent;
+  color:var(--mu);cursor:pointer;transition:all .15s;}
+.tab.on{color:var(--blue);}
+.tab.on .ti{background:var(--blue-lt);border-radius:8px;}
+.ti{font-size:16px;padding:4px 12px;transition:background .15s;}
+.tl{font-size:9px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border-radius:12px;padding:14px;margin-bottom:10px;
+  box-shadow:var(--sh);}
+.inset{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px;}
+
+/* ── TYPOGRAPHY ── */
+.ttl{font-family:'Sora',sans-serif;font-size:22px;color:var(--ink);font-weight:800;
+  letter-spacing:-.03em;line-height:1;}
+.sub{font-size:11px;color:var(--mu);margin-top:3px;font-weight:500;}
+.sec{font-size:10px;color:var(--mu);font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px;}
+
+/* ── FORM ── */
+.fld{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;}
+.fld>label{font-size:10px;color:var(--mu);font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
+.inp{background:var(--s2);border:1.5px solid var(--br);border-radius:8px;color:var(--ink);
+  padding:9px 12px;font-size:13px;outline:none;width:100%;min-width:0;
+  transition:border-color .15s,box-shadow .15s;box-sizing:border-box;}
+.inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);}
+textarea.inp{resize:vertical;line-height:1.5;}
+.iu{position:relative;}.iu .inp{padding-right:30px;}
+.iu span{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--mu);pointer-events:none;font-weight:600;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:0;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;min-width:0;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:8px;
+  font-size:12px;font-weight:700;cursor:pointer;border:none;padding:8px 14px;
+  white-space:nowrap;transition:all .12s;letter-spacing:-.01em;}
+.btn:active{transform:scale(.97);}
+.gold{background:var(--blue);color:#fff;}
+.gold:hover{background:#1d51c8;}
+.ghost{background:transparent;color:var(--blue);border:1.5px solid var(--blue-md);}
+.ghost:hover{background:var(--blue-lt);}
+.danger{background:var(--re-lt);color:var(--re);border:1.5px solid #fca5a5;}
+.ok{background:var(--gr-lt);color:var(--gr);border:1.5px solid #86efac;}
+.dim{background:var(--s3);color:var(--mu);border:1.5px solid var(--br);}
+.sm{padding:5px 10px;font-size:11px;border-radius:6px;}
+.full{width:100%;padding:12px;font-size:13px;border-radius:10px;}
+
+/* ── CHIP ── */
+.chip{display:inline-block;padding:2px 7px;border-radius:99px;font-size:9px;
+  font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;}
+
+/* ── LIST ROWS ── */
+.row{background:var(--s1);border-radius:10px;padding:11px 13px;
+  display:flex;align-items:flex-start;gap:9px;margin-bottom:7px;
+  box-shadow:var(--sh);transition:box-shadow .15s;}
+.row:hover{box-shadow:var(--sh-md);}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.ri{flex:1;min-width:0;}
+.rn{font-weight:700;font-size:13px;margin-bottom:2px;color:var(--ink);}
+.rm{font-size:11px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rch{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:3px;}
+.ra{display:flex;gap:4px;flex-shrink:0;}
+
+/* ── STAT ── */
+.sr{display:flex;justify-content:space-between;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--br);}
+.sr:last-child{border-bottom:none;}
+.sl{font-size:12px;color:var(--mu);}
+.sv{font-size:13px;font-weight:600;font-family:'JetBrains Mono',monospace;}
+
+/* ── KPI ── */
+.kg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.kpi{background:var(--s1);border-radius:12px;padding:14px;box-shadow:var(--sh);}
+.kpi-lg{background:var(--s1);border-radius:12px;padding:16px;box-shadow:var(--sh);}
+.kl{font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:5px;}
+.kv{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;
+  line-height:1.1;color:var(--ink);}
+.ks{font-size:10px;color:var(--mu);margin-top:3px;}
+
+/* ── PROGRESS ── */
+.prog{height:4px;background:var(--s3);border-radius:2px;overflow:hidden;margin-top:6px;}
+.pf{height:100%;border-radius:2px;transition:width .4s;}
+
+/* ── DIVIDER ── */
+.dv{display:flex;align-items:center;gap:8px;margin:10px 0;}
+.dvl{flex:1;height:1px;background:var(--br);}
+.dvt{font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;}
+
+/* ── HIGHLIGHT BOX ── */
+.hb{background:var(--s2);border:1.5px solid var(--br);border-radius:8px;padding:10px 12px;text-align:center;}
+.hbl{font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;}
+.hbv{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--ink);}
+
+/* ── FILTER ── */
+.fr{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:flex-end;margin-bottom:10px;}
+.sbar{display:flex;gap:6px;padding:7px 11px;background:var(--blue-lt);border-radius:8px;
+  font-size:11px;color:var(--blue);align-items:center;margin-bottom:8px;font-weight:600;}
+
+/* ── MODAL ── */
+#ovl{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;
+  align-items:center;justify-content:center;z-index:500;padding:16px;}
+#ovl.open{display:flex;}
+#mbox{background:var(--s1);border-radius:14px;padding:20px;max-width:520px;width:100%;
+  max-height:90vh;overflow-y:auto;box-shadow:var(--sh-md);animation:pop .18s ease;}
+
+/* ── CONFIRM MODAL ── */
+#confirmOvl{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;
+  align-items:center;justify-content:center;z-index:600;padding:20px;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);
+  padding:9px 18px;border-radius:8px;font-size:12px;font-weight:700;
+  z-index:999;box-shadow:var(--sh-md);white-space:nowrap;display:none;}
+
+/* ── STATUS PILL ── */
+.stpill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;
+  font-size:9px;font-weight:700;text-transform:uppercase;cursor:pointer;}
+
+/* ── CHART ── */
+.cw{position:relative;height:175px;margin-bottom:4px;}
+.cw-lg{position:relative;height:200px;margin-bottom:4px;}
+
+/* ── DASH CARDS ── */
+.dcard{background:var(--s1);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:var(--sh);}
+.dcard-title{font-size:10px;color:var(--mu);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;}
+
+/* ── PEDIDO COMPACTO ── */
+.pedrow{display:flex;align-items:center;gap:8px;padding:10px 13px;
+  background:var(--s1);border-bottom:1px solid var(--br);transition:background .1s;}
+.pedrow:first-child{border-radius:10px 10px 0 0;}
+.pedrow:last-child{border-bottom:none;border-radius:0 0 10px 10px;}
+.pedrow:only-child{border-radius:10px;}
+.pedrow:hover{background:var(--s2);}
+</style>
+</head>
+<body>
+
+<!-- HEADER (fixed) -->
+<div id="hdr">
+  <div style="display:flex;align-items:center;">
+    <button id="bkBtn" onclick="goBack()">←</button>
+    <span class="logo">ÁPICE SPORTS</span>
+    <span id="hdrSub" style="font-size:9px;color:var(--mu);letter-spacing:.12em;text-transform:uppercase;margin-left:8px;"></span>
+  </div>
+
+</div>
+
+<!-- TABS (bottom nav) -->
+<div id="tabs">
+  <button class="tab on" id="tab-ped"    onclick="goTab('ped')"  ><span class="ti">📋</span><span class="tl">Pedidos</span></button>
+  <button class="tab"    id="tab-lotes"  onclick="goTab('lotes')"><span class="ti">📦</span><span class="tl">Pacotes</span></button>
+  <button class="tab"    id="tab-transp" onclick="goTab('transp')"><span class="ti">🚚</span><span class="tl">Envio</span></button>
+  <button class="tab"    id="tab-caixa"  onclick="goTab('caixa')"><span class="ti">💸</span><span class="tl">Caixa</span></button>
+  <button class="tab"    id="tab-dash"   onclick="goTab('dash')" ><span class="ti">📊</span><span class="tl">Dash</span></button>
+  <button class="tab"    id="tab-cfg"    onclick="goTab('cfg')"  ><span class="ti">⚙️</span><span class="tl">Config</span></button>
+</div>
+
+<!-- PAGES (body scrolls naturally) -->
+
+<!-- PEDIDOS LISTA -->
+<div class="page active" id="pg-ped">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
+    <div><div class="ttl">Pedidos</div><div class="sub" id="pedSub">0 registros</div></div>
+    <button class="btn gold" onclick="openPedForm(null)">＋ Novo pedido</button>
+  </div>
+  <div class="fr">
+    <input class="inp" id="pedBusca" placeholder="🔍  Buscar cliente..." oninput="renderPedidos()">
+    <select class="inp" id="pedFTipo" onchange="renderPedidos()" style="width:auto;">
+      <option value="">Todos</option><option value="jogador">Jogador</option><option value="torcedor">Torcedor</option>
+    </select>
+    <select class="inp" id="pedFMod" onchange="renderPedidos()" style="width:auto;"><option value="">Modelos</option></select>
+  </div>
+  <div id="pedSbar" class="sbar" style="display:none;"></div>
+  <div id="loteBanner" style="display:none;align-items:center;gap:10px;padding:10px 13px;
+    background:var(--or-lt);border:1.5px solid var(--or);border-radius:10px;margin-bottom:10px;"></div>
+  <div id="pedList"></div>
+</div>
+
+<!-- PEDIDO FORM -->
+<div class="page" id="pg-ped-form">
+  <div style="margin-bottom:13px;"><h2 class="ttl" id="pfTitle">Novo Pedido</h2></div>
+  <div class="fld"><label>Cliente</label><input class="inp" id="pfCliente" placeholder="Nome do cliente"></div>
+  <div class="fld"><label>Modelo de camiseta</label><select class="inp" id="pfModelo"></select></div>
+  <div class="g2">
+    <div class="fld"><label>Produto</label><select class="inp" id="pfProd"></select></div>
+    <div class="fld"><label>Gênero</label><select class="inp" id="pfGenero">
+      <option>Masculino</option><option>Feminino</option><option>Infantil</option><option>Unissex</option>
+    </select></div>
+  </div>
+  <div class="g2">
+    <div class="fld"><label>Tamanho</label><select class="inp" id="pfTam">
+      <option>PP</option><option>P</option><option selected>M</option><option>G</option><option>GG</option><option>XGG</option><option>Único</option>
+    </select></div>
+    <div class="fld"><label>Quantidade</label><div class="iu"><input class="inp" type="number" id="pfQtd" value="1" min="1"><span>un</span></div></div>
+  </div>
+  <div class="fld"><label>Data do pedido</label><input class="inp" type="date" id="pfData"></div>
+  <div class="inset" style="margin-bottom:9px;">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="pfPerso" style="accent-color:var(--gold);width:14px;height:14px;" onchange="togglePerso()">
+      <span style="font-size:12px;font-weight:500;">Personalização (nome / número)</span>
+    </label>
+    <div id="pfPersoBox" style="display:none;margin-top:9px;" class="g2">
+      <div class="fld" style="margin-bottom:0;"><label>Nome</label><input class="inp" id="pfNome" placeholder="LUCAS"></div>
+      <div class="fld" style="margin-bottom:0;"><label>Número</label><input class="inp" id="pfNum" placeholder="10"></div>
+    </div>
+  </div>
+  <div class="fld"><label>Observações</label><textarea class="inp" id="pfObs" rows="2" placeholder="Detalhe extra..."></textarea></div>
+  <button class="btn gold full" id="pfSaveBtn" onclick="salvarPedido()">✓ Registrar pedido</button>
+</div>
+
+<!-- LOTES LISTA -->
+<div class="page" id="pg-lotes">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
+    <div><div class="ttl">Pacotes</div><div class="sub">Pacotes ao fornecedor — taxa e rastreio por pedido</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button class="btn ghost" onclick="sugerirPacotes()">✨ Sugerir pacotes</button>
+      <button class="btn gold" onclick="openLoteForm(null)">＋ Novo pacote</button>
+    </div>
+  </div>
+  <div id="loteList"></div>
+</div>
+
+<!-- LOTE FORM -->
+<div class="page" id="pg-lote-form">
+  <div style="margin-bottom:13px;"><h2 class="ttl" id="lfTitle">Novo Pacote</h2></div>
+
+  <div class="card">
+    <div class="dv"><div class="dvt">Identificação</div><div class="dvl"></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px;min-width:0;">
+      <div class="fld" style="margin-bottom:0;min-width:0;">
+        <label>Número do pacote</label>
+        <input class="inp" id="lfNum" placeholder="001" style="min-width:0;width:100%;">
+      </div>
+      <div class="fld" style="margin-bottom:0;min-width:0;">
+        <label>Data</label>
+        <input class="inp" type="date" id="lfData" style="min-width:0;width:100%;appearance:none;-webkit-appearance:none;">
+      </div>
+    </div>
+    <div style="height:9px;"></div>
+    <div class="fld"><label>Responsável</label>
+      <select class="inp" id="lfResp">
+        <option value="">— Selecionar —</option>
+      </select>
+    </div>
+    <div class="fld"><label>Descrição (opcional)</label><input class="inp" id="lfDesc" placeholder="Ex: Leva de abril"></div>
+  </div>
+
+  <!-- lfTotal e lfTaxa hidden — preenchidos automaticamente ou na aba Envio -->
+  <input type="hidden" id="lfTotal" value="">
+  <input type="hidden" id="lfTaxa" value="">
+  <div id="lfPreview" style="display:none;margin-top:8px;"><div class="hb"><div class="hbl">Taxa por peça</div><div class="hbv" id="lfTpp" style="color:var(--gold);font-size:18px;"></div></div></div>
+
+  <div class="card">
+    <div class="dv"><div class="dvt">Pedidos neste pacote</div><div class="dvl"></div></div>
+    <p style="font-size:11px;color:var(--mu);margin:6px 0 10px;line-height:1.6;">Marque os pedidos deste pacote. Máximo 8 peças por pacote.</p>
+    <!-- Contador -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      background:var(--s3);border-radius:6px;padding:8px 12px;margin-bottom:10px;">
+      <span style="font-size:11px;color:var(--mu);">Peças selecionadas</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:100px;height:6px;background:var(--br);border-radius:3px;overflow:hidden;">
+          <div id="lfContadorBar" style="height:100%;width:0%;border-radius:3px;transition:width .2s,background .2s;background:var(--blue);"></div>
+        </div>
+        <span id="lfContador" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--gold);">0 / 8</span>
+      </div>
+    </div>
+    <div id="lfPedList" style="max-height:320px;overflow-y:auto;"></div>
+  </div>
+
+  <button class="btn gold full" id="loteFormSave" onclick="salvarLote()">✓ Registrar pacote</button>
+</div>
+
+<!-- CAIXA LISTA -->
+<div class="page" id="pg-caixa">
+  <div style="margin-bottom:10px;"><div class="ttl">Caixa & Entregas</div><div class="sub">Controle de entrega e recebimento</div></div>
+  <div class="kg" id="cxKpis"></div>
+  <div class="fr">
+    <input class="inp" id="cxBusca" placeholder="🔍  Buscar..." oninput="renderCaixa()">
+    <select class="inp" id="cxFSt" onchange="renderCaixa()" style="width:auto;">
+      <option value="">Todos</option><option value="pendente">Pendente</option>
+      <option value="entregue">Entregue</option><option value="recebido">Recebido</option>
+    </select>
+  </div>
+  <div id="cxList"></div>
+</div>
+
+<!-- CAIXA DETALHE -->
+<div class="page" id="pg-caixa-det">
+  <div style="margin-bottom:13px;"><h2 class="ttl" id="cxDetTtl">Pagamento</h2></div>
+  <div id="cxDetBody"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page" id="pg-dash">
+  <div class="ttl" style="margin-bottom:12px;">Dashboard</div>
+  <div class="kg" id="dKpis"></div>
+  <div class="g3" id="dMed" style="margin-bottom:10px;"></div>
+  <div class="card" id="dChart"></div>
+  <div class="card" id="dMarg"></div>
+  <div class="card" id="dProd"></div>
+  <div id="dMod" style="margin-bottom:10px;"></div>
+  <div class="card" id="dTam"></div>
+  <div class="card" id="dLot"></div>
+  <div class="card" id="dPerso" style="padding:13px;"></div>
+</div>
+
+<!-- CONFIG -->
+<!-- TRANSPORTADORA -->
+<div class="page" id="pg-transp">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
+    <div><div class="ttl">Envio & Transportadora</div><div class="sub">Acompanhe o status de cada pedido</div></div>
+  </div>
+  <div id="transpList"></div>
+</div>
+
+<div class="page" id="pg-cfg">
+  <div class="ttl" style="margin-bottom:3px;">Configurações</div>
+  <div class="sub" style="margin-bottom:12px;">Câmbio, produtos e modelos</div>
+
+  <!-- USUÁRIOS -->
+  <div class="card">
+    <div class="dv"><div class="dvt">Usuários</div><div class="dvl"></div></div>
+    <p style="font-size:11px;color:var(--mu);margin:6px 0 12px;line-height:1.6;">Responsáveis pelos pedidos e operações. Aparecem no campo "Responsável" ao criar um pedido.</p>
+    <div id="cfgUsuarios"></div>
+    <button class="btn ghost sm" onclick="addUsuario()" style="margin-top:8px;">＋ Adicionar usuário</button>
+  </div>
+
+  <div class="card">
+    <div class="dv"><div class="dvt">Câmbio</div><div class="dvl"></div></div>
+    <div style="max-width:200px;margin-top:8px;">
+      <div class="fld"><label>Cotação USD/BRL</label><div class="iu"><input class="inp" type="number" step="0.01" id="cfgCot"><span>R$</span></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="dv"><div class="dvt">Produtos & Preços</div><div class="dvl"></div></div>
+    <p style="font-size:11px;color:var(--mu);margin:6px 0 10px;line-height:1.6;">Custo em USD e preço de venda em R$ por produto.</p>
+    <div id="cfgProd"></div>
+    <button class="btn ghost sm" onclick="addProduto()" style="margin-top:8px;">＋ Novo produto</button>
+  </div>
+  <button class="btn gold full" onclick="salvarCfg()">💾 Salvar configurações</button>
+  <div class="card" style="margin-top:9px;">
+    <div class="dv"><div class="dvt">Catálogo de Modelos</div><div class="dvl"></div></div>
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:flex-end;margin:9px 0;">
+      <input class="inp" id="cfgModLabel" placeholder="Ex: Barcelona – Azul">
+      <input type="color" id="cfgModCor" value="#C9A84C" style="width:36px;height:34px;border:1px solid var(--br);border-radius:5px;background:none;cursor:pointer;padding:2px;">
+      <button class="btn gold" onclick="addModelo()">＋</button>
+    </div>
+    <div id="cfgModList"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<!-- Modal de confirmação -->
+<div id="confirmOvl" style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:600;padding:20px;">
+  <div style="background:var(--s1);border-radius:14px;padding:22px;max-width:320px;width:100%;box-shadow:var(--sh-md);animation:pop .18s ease;">
+    <div id="confirmMsg" style="font-size:14px;color:var(--iv);margin-bottom:20px;line-height:1.5;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn dim full" onclick="confirmResolve(false)">Cancelar</button>
+      <button class="btn danger full" id="confirmOkBtn" onclick="confirmResolve(true)">Remover</button>
+    </div>
+  </div>
+</div>
+
+<div id="ovl" onclick="closeModal()">
+  <div id="mbox" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-family:'Sora',sans-serif;font-size:17px;color:var(--ink);font-weight:800;" id="mTtl"></div>
+      <button style="background:none;border:none;color:var(--mu);font-size:18px;cursor:pointer;" onclick="closeModal()">✕</button>
+    </div>
+    <div id="mBody"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════
+// DADOS DEMO
+// ═══════════════════
+const DEMO_P = [{"id": "ZSYGWD", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Brunno", "modelo": "sel-azul-fem", "prodId": "torcedor", "genero": "Feminino", "tamanho": "P", "qtd": 2, "dataPedido": "2026-04-03", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 179.9, "custo_total": 49.6, "lucro": 130.3, "margem": 72.4}, {"id": "AZLH8P", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Brunno", "modelo": "sel-azul-fem", "prodId": "torcedor", "genero": "Feminino", "tamanho": "P", "qtd": 1, "dataPedido": "2026-04-03", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 179.9, "custo_total": 49.6, "lucro": 130.3, "margem": 72.4}, {"id": "V9UE8V", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Pai da Dani", "modelo": "sel-azul-fem", "prodId": "torcedor", "genero": "Feminino", "tamanho": "XGG", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 179.9, "custo_total": 49.6, "lucro": 130.3, "margem": 72.4}, {"id": "H786DA", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Vallim", "modelo": "sel-amarelo", "prodId": "jogador", "genero": "Masculino", "tamanho": "G", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "UTIYOB", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Victor", "modelo": "sel-azul", "prodId": "torcedor", "genero": "Masculino", "tamanho": "XGG", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 179.9, "custo_total": 49.6, "lucro": 130.3, "margem": 72.4}, {"id": "O8888M", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Ricardo", "modelo": "sel-azul", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "BYY9WU", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Rafael", "modelo": "sel-amarelo", "prodId": "jogador", "genero": "Masculino", "tamanho": "G", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "QS0XCC", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Burns", "modelo": "sel-amarelo", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "VZEUGM", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Juju (Burns)", "modelo": "sel-amarelo-fem", "prodId": "jogador", "genero": "Feminino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "5NG4KW", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Arthur", "modelo": "curacao", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "X0O9AK", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Jheniffer", "modelo": "sel-amarelo-fem", "prodId": "jogador", "genero": "Feminino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "WBHE13", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Filho Jheniffer", "modelo": "sel-amarelo-inf", "prodId": "jogador", "genero": "Infantil", "tamanho": "PP", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "JJ8IVA", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Gabriel (Tata)", "modelo": "sel-amarelo", "prodId": "torcedor", "genero": "Masculino", "tamanho": "XGG", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 179.9, "custo_total": 49.6, "lucro": 130.3, "margem": 72.4}, {"id": "LP7EGQ", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Maju (Tata)", "modelo": "sel-amarelo-fem", "prodId": "jogador", "genero": "Feminino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "7JWV2I", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Emerson", "modelo": "sel-amarelo", "prodId": "torcedor", "genero": "Masculino", "tamanho": "G", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 179.9, "custo_total": 49.6, "lucro": 130.3, "margem": 72.4}, {"id": "JJZK13", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Lari", "modelo": "cruzeiro", "prodId": "jogador", "genero": "Feminino", "tamanho": "G", "qtd": 2, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "YSTMTS", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Lari", "modelo": "japao", "prodId": "jogador", "genero": "Feminino", "tamanho": "P", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "7FPOXQ", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Lari", "modelo": "corinth-50", "prodId": "jogador", "genero": "Feminino", "tamanho": "P", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "9CMTGZ", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Lari", "modelo": "corinth-black", "prodId": "jogador", "genero": "Feminino", "tamanho": "P", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "MYHHBR", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Lucas", "modelo": "japao", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "VQSGVF", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Lucas", "modelo": "sel-amarelo", "prodId": "jogador", "genero": "Masculino", "tamanho": "G", "qtd": 3, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "ZFYO1O", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Lucas", "modelo": "sel-amarelo", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 3, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "2TU7XB", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Torugo", "modelo": "sel-amarelo", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "VKXVA5", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Fernanda (Torugo)", "modelo": "sel-amarelo", "prodId": "jogador", "genero": "Feminino", "tamanho": "P", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "6OBBD3", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Jhonatas", "modelo": "sel-azul", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "EA2HYM", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Michael", "modelo": "real-madrid", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "60BZP0", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Estoque", "modelo": "sel-azul", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 3, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "K0HF8E", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Estoque", "modelo": "sel-azul", "prodId": "jogador", "genero": "Masculino", "tamanho": "G", "qtd": 3, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "4TMVYB", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Estoque", "modelo": "sel-vermelha", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 5, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "6A4MFG", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Alo Fit", "modelo": "generica", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 3, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "YGI29V", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Arthur", "modelo": "chelsea-polo", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "DOOP5J", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Sogro Thiago", "modelo": "generica", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}, {"id": "4JQ1KZ", "createdAt": "2026-04-18T10:00:00Z", "cliente": "Thiago", "modelo": "basquete", "prodId": "jogador", "genero": "Masculino", "tamanho": "M", "qtd": 1, "dataPedido": "2026-04-18", "personalizacao": false, "nomePerso": "", "numero": "", "obs": "", "loteId": null, "precoFinal": 250.0, "custo_total": 62.0, "lucro": 188.0, "margem": 75.2}];
+const DEMO_L = [];
+const DEMO_PAG = [{"id": "C4WLJD", "pedidoId": "ZSYGWD", "status": "pendente", "parcelas": [{"valor": 359.8, "recebido": false, "vencimento": ""}]}, {"id": "VS18MH", "pedidoId": "AZLH8P", "status": "pendente", "parcelas": [{"valor": 179.9, "recebido": false, "vencimento": ""}]}, {"id": "T8QDT1", "pedidoId": "V9UE8V", "status": "pendente", "parcelas": [{"valor": 179.9, "recebido": false, "vencimento": ""}]}, {"id": "7CPW2L", "pedidoId": "H786DA", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "GEBF6F", "pedidoId": "UTIYOB", "status": "pendente", "parcelas": [{"valor": 179.9, "recebido": false, "vencimento": ""}]}, {"id": "NO4LSD", "pedidoId": "O8888M", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "2LM14I", "pedidoId": "BYY9WU", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "UDO7K9", "pedidoId": "QS0XCC", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "8I3PAH", "pedidoId": "VZEUGM", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "E0QI5C", "pedidoId": "5NG4KW", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "34TT4X", "pedidoId": "X0O9AK", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "CTYTTR", "pedidoId": "WBHE13", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "HZF75W", "pedidoId": "JJ8IVA", "status": "pendente", "parcelas": [{"valor": 179.9, "recebido": false, "vencimento": ""}]}, {"id": "I90BE6", "pedidoId": "LP7EGQ", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "GJDN6U", "pedidoId": "7JWV2I", "status": "pendente", "parcelas": [{"valor": 179.9, "recebido": false, "vencimento": ""}]}, {"id": "7HPZOB", "pedidoId": "JJZK13", "status": "pendente", "parcelas": [{"valor": 500.0, "recebido": false, "vencimento": ""}]}, {"id": "6IKE7X", "pedidoId": "YSTMTS", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "TOG264", "pedidoId": "7FPOXQ", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "R68VLV", "pedidoId": "9CMTGZ", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "1W5N4N", "pedidoId": "MYHHBR", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "GEOYEY", "pedidoId": "VQSGVF", "status": "pendente", "parcelas": [{"valor": 750.0, "recebido": false, "vencimento": ""}]}, {"id": "HRXKL7", "pedidoId": "ZFYO1O", "status": "pendente", "parcelas": [{"valor": 750.0, "recebido": false, "vencimento": ""}]}, {"id": "4IZE6N", "pedidoId": "2TU7XB", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "H4YGZ9", "pedidoId": "VKXVA5", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "FRSKIF", "pedidoId": "6OBBD3", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "A3QDBW", "pedidoId": "EA2HYM", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "AD5P1R", "pedidoId": "60BZP0", "status": "pendente", "parcelas": [{"valor": 750.0, "recebido": false, "vencimento": ""}]}, {"id": "GW803H", "pedidoId": "K0HF8E", "status": "pendente", "parcelas": [{"valor": 750.0, "recebido": false, "vencimento": ""}]}, {"id": "SX3CWO", "pedidoId": "4TMVYB", "status": "pendente", "parcelas": [{"valor": 1250.0, "recebido": false, "vencimento": ""}]}, {"id": "1FOX4H", "pedidoId": "6A4MFG", "status": "pendente", "parcelas": [{"valor": 750.0, "recebido": false, "vencimento": ""}]}, {"id": "8KVLD6", "pedidoId": "YGI29V", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "KQRU4I", "pedidoId": "DOOP5J", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}, {"id": "GUFXMW", "pedidoId": "4JQ1KZ", "status": "pendente", "parcelas": [{"valor": 250.0, "recebido": false, "vencimento": ""}]}];
+const DEMO_MOD = [{"id": "sel-azul-fem", "label": "Seleção Azul – Feminino", "cor": "#1a5276", "ativo": true}, {"id": "sel-azul", "label": "Seleção Azul", "cor": "#1a5276", "ativo": true}, {"id": "sel-amarelo", "label": "Seleção Amarelo", "cor": "#b7950b", "ativo": true}, {"id": "sel-amarelo-fem", "label": "Seleção Amarelo – Feminino", "cor": "#9a7d0a", "ativo": true}, {"id": "sel-amarelo-inf", "label": "Seleção Amarelo – Infantil", "cor": "#d4ac0d", "ativo": true}, {"id": "sel-vermelha", "label": "Seleção Vermelha", "cor": "#922b21", "ativo": true}, {"id": "cruzeiro", "label": "Cruzeiro", "cor": "#1f618d", "ativo": true}, {"id": "corinth-50", "label": "Corinthians Branca 50 anos", "cor": "#d5d8dc", "ativo": true}, {"id": "corinth-black", "label": "Corinthians All Black", "cor": "#1a1a1a", "ativo": true}, {"id": "japao", "label": "Japão", "cor": "#922b21", "ativo": true}, {"id": "real-madrid", "label": "Real Madrid", "cor": "#7d3c98", "ativo": true}, {"id": "curacao", "label": "Curaçao", "cor": "#1f618d", "ativo": true}, {"id": "chelsea-polo", "label": "Chelsea Polo", "cor": "#154360", "ativo": true}, {"id": "generica", "label": "Genérica", "cor": "#5d6d7e", "ativo": true}, {"id": "basquete", "label": "Basquete", "cor": "#935116", "ativo": true}];
+const DEMO_PROD = [
+  {id:"jogador",  label:"Camiseta Jogador", custoUSD:10, vendaBRL:250},
+  {id:"torcedor", label:"Camiseta Torcedor",custoUSD:8,  vendaBRL:179.9},
+  {id:"retro",    label:"Camiseta Retrô",   custoUSD:12, vendaBRL:279.9},
+  {id:"jaqueta",  label:"Jaqueta",          custoUSD:25, vendaBRL:499.9},
+  {id:"bermuda",  label:"Bermuda",          custoUSD:15, vendaBRL:229.9},
+  {id:"kit-bebe", label:"Kit Bebê",         custoUSD:20, vendaBRL:349.9},
+];
+
+// ═══════════════════
+// STATE
+// ═══════════════════
+let pedidos=[], lotes=[], pags=[], modelos=[], produtos=[], cfg={cotacao:6.2};
+let usuarios=[
+  {id:"u1", nome:"Lucas",  contato:"", cargo:"Sócio"},
+  {id:"u2", nome:"Thiago", contato:"", cargo:"Sócio"},
+];
+let curTab="ped", editPedId=null, editLoteId=null, curCxId=null, chartRef=null;
+
+// ═══════════════════
+// STORAGE
+// ═══════════════════
+function persist(k,v){
+  // fire-and-forget — never blocks the UI
+  try{ window.storage.set(k,JSON.stringify(v)).catch(()=>{}); }catch(e){}
+}
+async function loadAll(){
+  // Version check — bump to force reload of demo data
+  const VER = "v8-abril2026";
+  try{
+    const vr = await window.storage.get("ap6_ver");
+    if(!vr || vr.value !== VER){
+      // Clear old data, load fresh demo
+      for(const k of ["ap6_ped","ap6_lot","ap6_pag","ap6_mod","ap6_prd","ap6_cfg"]){
+        try{ await window.storage.delete(k); }catch(e){}
+      }
+      await window.storage.set("ap6_ver", VER);
+      return; // will use DEMO data below
+    }
+  }catch(e){}
+  try{
+    const r1=await window.storage.get("ap6_ped");  if(r1){const v=JSON.parse(r1.value);if(v?.length)pedidos=v;}
+    const r2=await window.storage.get("ap6_lot");  if(r2){const v=JSON.parse(r2.value);if(v?.length)lotes=v;}
+    const r3=await window.storage.get("ap6_pag");  if(r3){const v=JSON.parse(r3.value);if(v?.length)pags=v;}
+    const r4=await window.storage.get("ap6_mod");  if(r4){const v=JSON.parse(r4.value);if(v?.length)modelos=v;}
+    const r5=await window.storage.get("ap6_prd");  if(r5){const v=JSON.parse(r5.value);if(v?.length)produtos=v;}
+    const r6=await window.storage.get("ap6_cfg");  if(r6){const v=JSON.parse(r6.value);if(v)cfg=v;}
+  }catch(e){}
+  try{
+    const ru=await window.storage.get("ap6_usr"); if(ru){const v=JSON.parse(ru.value);if(v?.length)usuarios=v;}
+  }catch(e){}
+  if(!pedidos.length)  pedidos  = DEMO_P.map(x=>({...x}));
+  if(!pedidos.length)    pedidos    = DEMO_L.map(x=>({...x}));
+  if(!pags.length)     pags     = DEMO_PAG.map(x=>({...x,parcelas:x.parcelas.map(p=>({...p}))}));
+  if(!modelos.length)  modelos  = DEMO_MOD.map(x=>({...x}));
+  if(!produtos.length) produtos = DEMO_PROD.map(x=>({...x}));
+}
+
+// ═══════════════════
+// UTILS
+// ═══════════════════
+const uid    = ()=>Math.random().toString(36).slice(2,8).toUpperCase();
+const brl    = v =>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const pct    = v =>Number(v||0).toFixed(1)+"%";
+const hoje   = ()=>new Date().toISOString().slice(0,10);
+const getMod = id=>modelos.find(x=>x.id===id)||{label:id,cor:"#C9A84C"};
+const getProd= id=>produtos.find(x=>x.id===id)||{label:id,custoUSD:0,vendaBRL:0};
+const getLote= id=>lotes.find(x=>x.id===id)||null;
+const getPag = id=>pags.find(x=>x.pedidoId===id)||null;
+
+function calcCusto(prodId,loteId){
+  const base=(getProd(prodId).custoUSD||0)*cfg.cotacao;
+  let taxa=0;
+  if(loteId){const l=getLote(loteId);if(l&&l.totalPecas>0)taxa=(l.taxa||0)/l.totalPecas;}
+  return base+taxa;
+}
+function mkChip(lbl,clr){return`<span class="chip" style="background:${clr}22;color:${clr};border:1px solid ${clr}33;">${lbl}</span>`;}
+function stCol(s){return s==="recebido"?"var(--gr)":s==="entregue"?"var(--gold)":"var(--mu)";}
+function stLbl(s){return s==="recebido"?"✓ Recebido":s==="entregue"?"📬 Entregue":"⏳ Pendente";}
+function toast(msg,ok=true){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.style.background=ok?"var(--gr)":"var(--re)";t.style.color="#fff";
+  t.style.display="block";setTimeout(()=>t.style.display="none",2400);
+}
+function openModal(ttl,body){document.getElementById("mTtl").textContent=ttl;document.getElementById("mBody").innerHTML=body;document.getElementById("ovl").classList.add("open");}
+function closeModal(){document.getElementById("ovl").classList.remove("open");}
+function updHdr(){
+  const tot=pedidos.reduce((a,p)=>a+(p.qtd||1),0);
+
+}
+
+// ═══════════════════
+// NAV — pages são divs normais, body scrolla
+// ═══════════════════
+function showPage(id){
+  document.querySelectorAll(".page").forEach(el=>el.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0,0);
+}
+
+function goTab(tab){
+  curTab=tab;
+  document.querySelectorAll(".tab").forEach(el=>el.classList.remove("on"));
+  document.getElementById("tab-"+tab).classList.add("on");
+  document.getElementById("bkBtn").style.display="none";
+  document.getElementById("hdrSub").textContent="";
+  if(tab==="ped")  {showPage("pg-ped");   fillModFilter();renderPedidos();}
+
+  if(tab==="lotes"){showPage("pg-lotes"); renderLotes();}
+  if(tab==="caixa"){showPage("pg-caixa"); renderCaixa();}
+  if(tab==="dash") {showPage("pg-dash");  renderDash();}
+  if(tab==="transp"){showPage("pg-transp"); renderTransp();}
+  if(tab==="cfg")  {showPage("pg-cfg");   renderCfg();}
+}
+
+function goBack(){
+  document.getElementById("bkBtn").style.display="none";
+  document.getElementById("hdrSub").textContent="";
+  editPedId=null; editLoteId=null; curCxId=null;
+  goTab(curTab);
+}
+
+function showForm(pageId, subtitle){
+  showPage(pageId);
+  document.getElementById("bkBtn").style.display="block";
+  document.getElementById("hdrSub").textContent=subtitle||"";
+  window.scrollTo(0,0);
+}
+
+// ═══════════════════
+// PEDIDOS
+// ═══════════════════
+const TRANSP_STATUS = [
+  {id:"aguardando",  label:"Aguardando envio",  cor:"var(--mu)",   icon:"⏳"},
+  {id:"rastreio",    label:"Rastreio recebido", cor:"var(--gold)", icon:"🔢"},
+  {id:"em_transito", label:"Em trânsito",       cor:"var(--bl)",   icon:"🚢"},
+  {id:"chegou_br",   label:"Chegou no Brasil",  cor:"var(--pu)",   icon:"🇧🇷"},
+  {id:"taxa_paga",   label:"Taxa paga",         cor:"var(--or)",   icon:"💰"},
+  {id:"entregue",    label:"Entregue",          cor:"var(--gr)",   icon:"✅"},
+  {id:"problema",    label:"Problema",          cor:"var(--re)",   icon:"⚠️"},
+];
+
+function fillModFilter(){
+  const sel=document.getElementById("pedFMod");const cur=sel.value;
+  sel.innerHTML='<option value="">Modelos</option>'+modelos.filter(m=>m.ativo).map(m=>`<option value="${m.id}">${m.label}</option>`).join("");
+  sel.value=cur;
+}
+
+function renderPedidos(){
+  const FECHADO = ["rastreio","em_transito","chegou_br","taxa_paga","entregue"];
+
+  // Separar pedidos ativos (pacote aguardando/sem pacote) dos fechados (rastreio recebido+)
+  const pedidosAtivos   = pedidos.filter(p=>{
+    if(!p.loteId) return true;
+    const l=getLote(p.loteId);
+    return !l || !FECHADO.includes(l.envioStatus||"");
+  });
+  const lotesFechados   = lotes.filter(l=>FECHADO.includes(l.envioStatus||""));
+  const pedidosFechados = pedidos.filter(p=>{
+    if(!p.loteId) return false;
+    const l=getLote(p.loteId);
+    return l && FECHADO.includes(l.envioStatus||"");
+  });
+
+  // Resumo de pacotes fechados (aparece no topo da lista)
+  let resumoFechados = "";
+  if(lotesFechados.length>0){
+    const totalFech = pedidosFechados.reduce((a,p)=>a+(p.qtd||1),0);
+    const lotesOrdenados = [...lotesFechados].sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+    resumoFechados = `<div style="background:var(--s2);border:1px solid var(--br);border-radius:8px;
+      padding:11px 13px;margin-bottom:12px;opacity:0.65;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--mu);">
+            📦 ${lotesFechados.length} pacote${lotesFechados.length>1?"s":""} em andamento
+          </div>
+          <div style="font-size:10px;color:var(--mu);margin-top:2px;">
+            ${totalFech} peça${totalFech>1?"s":""} já fechadas
+          </div>
+        </div>
+        <button class="btn ghost sm" onclick="goTab('transp')" style="font-size:10px;">Ver status →</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        ${lotesOrdenados.map(l=>{
+          const ps=pedidos.filter(p=>p.loteId===l.id);
+          const q=ps.reduce((a,p)=>a+(p.qtd||1),0);
+          const st=TRANSP_STATUS.find(x=>x.id===(l.envioStatus||"aguardando"))||TRANSP_STATUS[0];
+          return `<span style="display:inline-flex;align-items:center;gap:4px;background:${st.cor}18;
+            border:1px solid ${st.cor}44;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;color:${st.cor};">
+            ${st.icon} Pacote ${l.num} · ${q} peças
+          </span>`;
+        }).join("")}
+      </div>
+    </div>`;
+  }
+
+  const b=(document.getElementById("pedBusca")?.value||"").toLowerCase();
+  const ft=document.getElementById("pedFTipo")?.value||"";
+  const fm=document.getElementById("pedFMod")?.value||"";
+  const lista=pedidosAtivos.filter(p=>(!b||p.cliente.toLowerCase().includes(b))&&(!ft||p.prodId===ft)&&(!fm||p.modelo===fm));
+  const totAtivos=pedidosAtivos.reduce((a,p)=>a+(p.qtd||1),0);
+  document.getElementById("pedSub").textContent=`${pedidosAtivos.length} pedidos ativos · ${totAtivos} peças`;
+
+  const sb=document.getElementById("pedSbar");
+  if(lista.length!==pedidosAtivos.length){
+    sb.style.display="flex";
+    sb.innerHTML=`<span style="color:var(--blue);font-weight:700;">${lista.length}</span> filtrados`;
+  }else sb.style.display="none";
+
+  // Banner: peças sem pacote
+  const pecasSL=pedidosAtivos.filter(x=>!x.loteId).reduce((a,p)=>a+(p.qtd||1),0);
+  const bannerEl=document.getElementById("loteBanner");
+  if(bannerEl){
+    if(pecasSL>0){
+      const nec=Math.ceil(pecasSL/8),resto=pecasSL%8;
+      bannerEl.style.display="flex";
+      bannerEl.innerHTML=`
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:var(--or);">⚠️ ${pecasSL} peça${pecasSL>1?"s":""} sem pacote</div>
+          <div style="font-size:11px;color:var(--mu);margin-top:3px;">
+            ${nec} pacote${nec>1?"s":""} necessário${nec>1?"s":""}
+            ${resto>0?` · ${resto} no último pacote`:""}
+          </div>
+        </div>
+        <button class="btn gold sm" onclick="goTab('lotes')">Fechar pacote</button>`;
+    } else bannerEl.style.display="none";
+  }
+
+  const el=document.getElementById("pedList");
+  if(!lista.length){
+    el.innerHTML=resumoFechados+`<div class="card" style="text-align:center;padding:40px;">
+      <div style="font-size:28px;margin-bottom:8px;">📋</div>
+      <div style="color:var(--mu);font-size:12px;">
+        ${pedidosAtivos.length===0&&lotesFechados.length>0
+          ?"Todos os pedidos estão em pacotes em andamento."
+          :pedidos.length===0?"Nenhum pedido ainda.":"Nenhum resultado."}
+      </div>
+    </div>`;
+    return;
+  }
+
+// Agrupar: 1º por tipo (Jogador / Torcedor), 2º por modelo, 3º ordenar por tamanho
+  const tamOrder={"PP":0,"P":1,"M":2,"G":3,"GG":4,"XGG":5,"Único":6};
+  const tipos = ["jogador","torcedor"];
+  const tipoLabel = {"jogador":"Modelo Jogador","torcedor":"Modelo Torcedor"};
+  const tipoColor = {"jogador":"var(--blue)","torcedor":"var(--pu)"};
+
+  let html = "";
+  tipos.forEach(tipo=>{
+    const itensTipo = lista.filter(p=>p.prodId===tipo);
+    if(!itensTipo.length) return;
+
+    const qtdTipo = itensTipo.reduce((a,p)=>a+(p.qtd||1),0);
+
+    // Separador de tipo — em grande evidência
+    html += `<div style="margin:${tipo==="jogador"?"4px":"20px"} 0 12px;">
+      <div style="background:${tipoColor[tipo]}12;border:1px solid ${tipoColor[tipo]}44;
+        border-radius:10px;padding:12px 14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:${tipoColor[tipo]};line-height:1;letter-spacing:-.02em;">
+              ${tipoLabel[tipo]}
+            </div>
+            <div style="font-size:10px;color:${tipoColor[tipo]}99;margin-top:2px;letter-spacing:.05em;">
+              ${getProd(tipo).label}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:${tipoColor[tipo]};line-height:1;">${qtdTipo}</div>
+            <div style="font-size:10px;color:${tipoColor[tipo]}99;">peça${qtdTipo!==1?"s":""}</div>
+          </div>
+        </div>
+        <div style="margin-top:8px;height:2px;background:${tipoColor[tipo]}33;border-radius:1px;overflow:hidden;">
+          <div style="height:100%;width:100%;background:${tipoColor[tipo]}66;border-radius:1px;"></div>
+        </div>
+      </div>
+    </div>`;
+
+    // Agrupar por modelo dentro do tipo
+    const byMod={};
+    itensTipo.forEach(p=>{
+      const key=p.modelo;
+      if(!byMod[key]) byMod[key]={mod:getMod(p.modelo),itens:[]};
+      byMod[key].itens.push(p);
+    });
+    const grupos=Object.values(byMod).sort((a,b)=>a.mod.label.localeCompare(b.mod.label));
+    grupos.forEach(g=>g.itens.sort((a,b)=>(tamOrder[a.tamanho]??9)-(tamOrder[b.tamanho]??9)));
+
+    html += grupos.map(g=>{
+      const qtdGrupo=g.itens.reduce((a,p)=>a+(p.qtd||1),0);
+      return `<div style="margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:7px;padding:5px 10px;
+          background:var(--s2);border-radius:10px 10px 0 0;border:1px solid var(--br);border-bottom:none;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${g.mod.cor};flex-shrink:0;"></div>
+          <span style="font-size:10px;font-weight:700;color:var(--iv);flex:1;">${g.mod.label}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--gold);">${qtdGrupo}</span>
+          <span style="font-size:10px;color:var(--mu);margin-left:2px;">peça${qtdGrupo>1?"s":""}</span>
+        </div>
+        <div style="border:1px solid var(--br);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;">
+          ${g.itens.map((p,i,arr)=>pedRow(p,i===arr.length-1)).join("")}
+        </div>
+      </div>`;
+    }).join("");
+  });
+
+  el.innerHTML = resumoFechados + html;
+}
+
+
+function pedRow(p, isLast){
+  const m=getMod(p.modelo);
+  const pr=getProd(p.prodId);
+  const pag=getPag(p.id);
+  const st=pag?.status||"pendente";
+  const lot=p.loteId?getLote(p.loteId):null;
+  // Status do pacote: se já foi enviado, atenuar visualmente
+  const statusPacote=lot?(lot.envioStatus||"aguardando"):"";
+  const emTransito=["rastreio","em_transito","chegou_br","taxa_paga"].includes(statusPacote);
+  const entregueOk=["entregue"].includes(statusPacote);
+  const stC=stCol(st);
+  const stIcon=st==="recebido"?"✓":st==="entregue"?"📬":"⏳";
+  const prodLabel=pr.label.replace("Camiseta ","");
+  const persoTag=p.personalizacao?`<span style="color:var(--pu);font-size:9px;"> ✦ ${p.nomePerso} #${p.numero}</span>`:"";
+  const qtdTag=p.qtd>1?`<span style="color:var(--gr);"> ×${p.qtd}</span>`:"";
+  const border=isLast?"none":`1px solid var(--br)`;
+  const rowBg = entregueOk?"var(--s2)":emTransito?"var(--s1)":"var(--s1)";
+  const rowOpa = entregueOk?"0.45":emTransito?"0.65":"1";
+  return`<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--s1);border-bottom:${border};opacity:${rowOpa};transition:all .1s;" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='var(--s1)'">
+    <!-- Nome + modelo discreto -->
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:600;color:var(--iv);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        ${p.cliente}${qtdTag}${persoTag}
+      </div>
+      <div style="font-size:10px;color:var(--mu);margin-top:1px;">${prodLabel}${p.obs?` · ${p.obs}`:""}</div>
+    </div>
+    <!-- Tamanho em destaque -->
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--iv);background:var(--s3);border-radius:4px;padding:2px 7px;flex-shrink:0;">${p.tamanho}</div>
+    <!-- Pedido -->
+    ${lot?(()=>{
+      const ico = emTransito?"🚢":entregueOk?"✅":"📦";
+      const cor = emTransito?"var(--bl)":entregueOk?"var(--gr)":"var(--gold)";
+      return `<div style="font-size:9px;font-weight:700;color:${cor};background:${cor}18;border:1px solid ${cor}44;border-radius:4px;padding:2px 6px;flex-shrink:0;">${ico} L${lot.num}</div>`;
+    })():""}
+    <!-- Status clicável -->
+    <div style="background:${stC}22;color:${stC};border:1px solid ${stC}33;border-radius:99px;padding:2px 7px;font-size:9px;font-weight:700;cursor:pointer;flex-shrink:0;"
+      onclick="openCxDet('${p.id}')">${stIcon}</div>
+    <!-- Ações -->
+    <button class="btn ghost sm" onclick="openPedForm('${p.id}')" style="padding:3px 7px;flex-shrink:0;">✏</button>
+    <button class="btn danger sm" onclick="delPed('${p.id}')" style="padding:3px 7px;flex-shrink:0;">✕</button>
+  </div>`;
+}
+
+function openPedForm(id){
+  curTab="ped"; editPedId=id;
+  const p=id?pedidos.find(x=>x.id===id):null;
+  document.getElementById("pfModelo").innerHTML=modelos.filter(m=>m.ativo).map(m=>`<option value="${m.id}">${m.label}</option>`).join("");
+  document.getElementById("pfProd").innerHTML=produtos.map(pr=>`<option value="${pr.id}">${pr.label}</option>`).join("");
+  const pfTitleEl=document.getElementById("pfTitle"); if(pfTitleEl) pfTitleEl.textContent=p?"Editar Pedido":"Novo Pedido";
+  const pfSaveEl=document.getElementById("pfSaveBtn"); if(pfSaveEl) pfSaveEl.textContent=p?"💾 Salvar alterações":"✓ Registrar pedido";
+  if(p){
+    document.getElementById("pfCliente").value=p.cliente||"";
+    document.getElementById("pfModelo").value=p.modelo||"";
+    document.getElementById("pfProd").value=p.prodId||"jogador";
+    document.getElementById("pfGenero").value=p.genero||"Masculino";
+    document.getElementById("pfTam").value=p.tamanho||"M";
+    document.getElementById("pfQtd").value=p.qtd||1;
+    document.getElementById("pfData").value=p.dataPedido||hoje();
+    document.getElementById("pfPerso").checked=!!p.personalizacao;
+    document.getElementById("pfNome").value=p.nomePerso||"";
+    document.getElementById("pfNum").value=p.numero||"";
+    document.getElementById("pfObs").value=p.obs||"";
+    document.getElementById("pfPersoBox").style.display=p.personalizacao?"grid":"none";
+  }else{
+    ["pfCliente","pfNome","pfNum","pfObs"].forEach(x=>document.getElementById(x).value="");
+    document.getElementById("pfProd").value="jogador";
+    document.getElementById("pfGenero").value="Masculino";
+    document.getElementById("pfTam").value="M";
+    document.getElementById("pfQtd").value=1;
+    document.getElementById("pfData").value=hoje();
+    document.getElementById("pfPerso").checked=false;
+    document.getElementById("pfPersoBox").style.display="none";
+  }
+  showForm("pg-ped-form","novo pedido");
+}
+
+function togglePerso(){document.getElementById("pfPersoBox").style.display=document.getElementById("pfPerso").checked?"grid":"none";}
+
+function salvarPedido(){
+  const cliente=document.getElementById("pfCliente").value.trim();
+  const modelo=document.getElementById("pfModelo").value;
+  if(!cliente){toast("Informe o nome do cliente",false);return;}
+  if(!modelo){toast("Selecione um modelo",false);return;}
+  const prodId=document.getElementById("pfProd").value;
+  const venda=getProd(prodId).vendaBRL||0;
+  const loteId=editPedId?(pedidos.find(x=>x.id===editPedId)||{}).loteId||null:null;
+  const custo=calcCusto(prodId,loteId);
+  const lucro=venda-custo, margem=venda>0?(lucro/venda)*100:0;
+  const perso=document.getElementById("pfPerso").checked;
+  const p={
+    id:editPedId||uid(),
+    createdAt:editPedId?(pedidos.find(x=>x.id===editPedId)||{}).createdAt||new Date().toISOString():new Date().toISOString(),
+    cliente,modelo,prodId,
+    genero:document.getElementById("pfGenero").value,
+    tamanho:document.getElementById("pfTam").value,
+    qtd:Math.max(1,parseInt(document.getElementById("pfQtd").value)||1),
+    dataPedido:document.getElementById("pfData").value,
+    personalizacao:perso,
+    nomePerso:perso?document.getElementById("pfNome").value:"",
+    numero:perso?document.getElementById("pfNum").value:"",
+    obs:document.getElementById("pfObs").value,
+    loteId,precoFinal:venda,custo_total:custo,lucro,margem,
+  };
+  if(editPedId){const i=pedidos.findIndex(x=>x.id===editPedId);if(i>=0)pedidos[i]=p;}
+  else{
+    pedidos.push(p);
+    if(!getPag(p.id)){pags.push({id:uid(),pedidoId:p.id,status:"pendente",parcelas:[{valor:venda,recebido:false,vencimento:""}]});persist("ap6_pag",pags);}
+  }
+  persist("ap6_ped",pedidos);
+  editPedId=null;updHdr();goTab("ped");toast("Pedido salvo ✓");
+  // Calcular pedidos necessários após cada cadastro
+  const pecasSemPedido = pedidos.filter(x=>!x.loteId).reduce((a,p)=>a+(p.qtd||1),0);
+  if(pecasSemLote>0){
+    const pedidosNec = Math.ceil(pecasSemLote/8);
+    const pedidosCompletos = Math.floor(pecasSemLote/8);
+    const resto = pecasSemLote%8;
+    // Mostrar banner no topo da lista
+    window._loteInfo = {pecas:pecasSemLote, necessarios:pedidosNec, completos:pedidosCompletos, resto};
+  } else {
+    window._loteInfo = null;
+  }
+}
+
+// Confirm customizado (confirm() nativo não funciona em artifacts)
+let _confirmCb = null;
+function showConfirm(msg, okLabel, cb){
+  _confirmCb = cb;
+  document.getElementById("confirmMsg").textContent = msg;
+  document.getElementById("confirmOkBtn").textContent = okLabel||"Remover";
+  document.getElementById("confirmOvl").style.display = "flex";
+}
+function confirmResolve(ok){
+  document.getElementById("confirmOvl").style.display = "none";
+  if(_confirmCb){ _confirmCb(ok); _confirmCb=null; }
+}
+
+function delPed(id){
+  showConfirm("Remover este pedido?","Remover",ok=>{
+    if(!ok)return;
+    pedidos=pedidos.filter(p=>p.id!==id);pags=pags.filter(x=>x.pedidoId!==id);
+    persist("ap6_ped",pedidos);persist("ap6_pag",pags);
+    updHdr();renderPedidos();toast("Pedido removido",false);
+  });
+}
+function delGrupo(ids){
+  showConfirm("Remover todos os pedidos deste cliente?","Remover todos",ok=>{
+    if(!ok)return;
+    pedidos=pedidos.filter(p=>!ids.includes(p.id));pags=pags.filter(x=>!ids.includes(x.pedidoId));
+    persist("ap6_ped",pedidos);persist("ap6_pag",pags);
+    updHdr();renderPedidos();toast("Pedidos removidos",false);
+  });
+}
+
+// ═══════════════════
+// LOTES
+// ═══════════════════
+function renderLotes(){
+  const semLote = pedidos.filter(p=>!p.loteId);
+  let html = "";
+
+  if(!lotes.length){
+    html = `<div class="card" style="text-align:center;padding:40px;">
+      <div style="font-size:28px;margin-bottom:8px;">📦</div>
+      <div style="color:var(--mu);font-size:12px;">Nenhum pedido registrado.</div>
+    </div>`;
+  } else {
+    html = lotes.map(l=>{
+      const ps  = pedidos.filter(p=>p.loteId===l.id);
+      const qtd = ps.reduce((a,p)=>a+(p.qtd||1),0);
+      const tp  = l.totalPecas>0 ? l.taxa/l.totalPecas : 0;
+      const resp= l.responsavelId ? (usuarios.find(u=>u.id===l.responsavelId)||{nome:"?"}).nome : "";
+
+      // Agrupar pedidos por modelo para exibir organizado
+      const byMod = {};
+      ps.forEach(p=>{
+        if(!byMod[p.modelo]) byMod[p.modelo]={cor:getMod(p.modelo).cor, label:getMod(p.modelo).label, itens:[]};
+        byMod[p.modelo].itens.push(p);
+      });
+
+      const pecasHtml = Object.values(byMod).map(g=>`
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:${g.cor};flex-shrink:0;"></div>
+            <span style="font-size:10px;font-weight:700;color:var(--iv);">${g.label}</span>
+          </div>
+          ${g.itens.map(p=>`
+            <div style="display:flex;align-items:center;gap:8px;padding:4px 0 4px 14px;border-bottom:1px solid var(--br);">
+              <div style="flex:1;min-width:0;">
+                <span style="font-size:12px;color:var(--iv);font-weight:500;">${p.cliente}</span>
+                ${p.personalizacao?`<span style="font-size:10px;color:var(--pu);margin-left:5px;">✦ ${p.nomePerso} #${p.numero}</span>`:""}
+              </div>
+              <span style="font-size:10px;font-family:'JetBrains Mono',monospace;background:var(--s3);
+                border-radius:4px;padding:1px 6px;color:var(--iv);flex-shrink:0;">${p.tamanho}</span>
+              <span style="font-size:10px;color:var(--mu);flex-shrink:0;">${getProd(p.prodId).label.replace("Camiseta ","")}</span>
+              ${p.qtd>1?`<span style="font-size:10px;color:var(--gr);font-weight:700;flex-shrink:0;">×${p.qtd}</span>`:""}
+            </div>`).join("")}
+        </div>`).join("");
+
+      return`<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;">
+        <!-- Cabeçalho clicável -->
+        <div onclick="toggleLote('${l.id}')" style="display:flex;align-items:center;gap:10px;
+          padding:12px 14px;cursor:pointer;background:var(--s1);">
+          <div style="font-size:18px;flex-shrink:0;">📦</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:700;color:var(--iv);">
+              Pedido ${l.num}
+              ${l.desc?`<span style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px;">· ${l.desc}</span>`:""}
+            </div>
+            <div style="font-size:10px;color:var(--mu);margin-top:2px;">
+              ${l.data||""}
+              ${qtd>0?` · <span style="color:var(--gold);font-weight:600;">${qtd} peça${qtd!==1?"s":""}</span>`:" · sem peças"}
+              ${tp>0?` · ${brl(tp)}/peça`:""}
+              ${resp?` · ${resp}`:""}
+            </div>
+            <div style="margin-top:5px;">
+              ${(()=>{ const st=TRANSP_STATUS.find(x=>x.id===(l.envioStatus||"aguardando"))||TRANSP_STATUS[0];
+                return `<span style="display:inline-flex;align-items:center;gap:4px;background:${st.cor}18;
+                  border:1px solid ${st.cor}44;border-radius:20px;padding:3px 9px;
+                  font-size:10px;font-weight:700;color:${st.cor};">${st.icon} ${st.label}</span>`;
+              })()}
+            </div>
+          </div>
+          <!-- Seta expansão -->
+          <div id="lote-arrow-${l.id}" style="color:var(--mu);font-size:14px;transition:transform .2s;flex-shrink:0;">▼</div>
+          <div class="ra" onclick="event.stopPropagation()">
+            <button class="btn ghost sm" onclick="resumoLote('${l.id}')">📋</button>
+            <button class="btn ghost sm" onclick="openLoteForm('${l.id}')">✏️</button>
+            <button class="btn danger sm" onclick="delLote('${l.id}')">✕</button>
+          </div>
+        </div>
+        <!-- Conteúdo expansível -->
+        <div id="lote-body-${l.id}" style="display:none;border-top:1px solid var(--br);padding:12px 14px;background:var(--s2);">
+          ${ps.length===0
+            ? `<div style="font-size:12px;color:var(--mu);text-align:center;padding:10px 0;">Nenhum pedido vinculado a este pedido ainda.</div>`
+            : pecasHtml
+          }
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  if(semLote.length){
+    const pecasSL = semLote.reduce((a,p)=>a+(p.qtd||1),0);
+    const pedidosNec = Math.ceil(pecasSL/8);
+    html += `<div class="inset" style="margin-top:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div class="sec" style="margin-bottom:0;">${pecasSL} peça${pecasSL!==1?"s":""} aguardando pedido · ${pedidosNec} lote${pedidosNec!==1?"s":""} necessário${pedidosNec!==1?"s":""}</div>
+        <button class="btn gold sm" onclick="openLoteForm(null)">＋ Novo pacote</button>
+      </div>
+      ${semLote.map(p=>`
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px solid var(--br);">
+          <div style="width:6px;height:6px;border-radius:50%;background:${getMod(p.modelo).cor};flex-shrink:0;"></div>
+          <span style="color:var(--iv);font-weight:500;flex:1;">${p.cliente}</span>
+          <span style="color:var(--mu);">${getMod(p.modelo).label} ${p.tamanho}</span>
+          ${p.qtd>1?`<span style="color:var(--gr);">×${p.qtd}</span>`:""}
+        </div>`).join("")}
+    </div>`;
+  }
+
+  document.getElementById("loteList").innerHTML = html;
+}
+
+function toggleLote(id){
+  const body  = document.getElementById("lote-body-"+id);
+  const arrow = document.getElementById("lote-arrow-"+id);
+  if(!body) return;
+  const open = body.style.display === "block";
+  body.style.display  = open ? "none" : "block";
+  if(arrow) arrow.style.transform = open ? "" : "rotate(180deg)";
+}
+
+function openLoteForm(id){
+  curTab="lotes"; editLoteId=id;
+  try {
+  const l=id?getLote(id):null;
+  const lfTitleEl=document.getElementById("lfTitle"); if(lfTitleEl) lfTitleEl.textContent=l?"Editar Pacote":"Novo Pacote";
+  const lfNumEl=document.getElementById("lfNum"); if(lfNumEl) lfNumEl.value=l?l.num:"";
+  const lfDataEl=document.getElementById("lfData"); if(lfDataEl) lfDataEl.value=l?l.data:hoje();
+  const lfDescEl=document.getElementById("lfDesc"); if(lfDescEl) lfDescEl.value=l?(l.desc||""):"";
+  const lfTotalEl=document.getElementById("lfTotal"); if(lfTotalEl) lfTotalEl.value=l?(l.totalPecas||""):"";
+  const lfTaxaEl=document.getElementById("lfTaxa"); if(lfTaxaEl) lfTaxaEl.value=l?(l.taxa||""):"";
+  const lfPrevEl=document.getElementById("lfPreview"); if(lfPrevEl) lfPrevEl.style.display="none";
+  const respSel=document.getElementById("lfResp");
+  if(respSel){
+    respSel.innerHTML='<option value="">— Selecionar —</option>'+
+      usuarios.map(u=>`<option value="${u.id}">${u.nome}${u.cargo?" ("+u.cargo+")":""}</option>`).join("");
+    respSel.value=l?(l.responsavelId||""):"";
+  }
+  previewLote();
+  // Apenas pedidos sem pedido (para novo pedido) ou vinculados a este pedido (para editar)
+  const disponiveis = pedidos.filter(p => !p.loteId);          // sem pedido = podem entrar
+  const jaNesteL    = pedidos.filter(p => p.loteId === id);    // já neste pedido (edição)
+  const el = document.getElementById("lfPedList");
+
+  if(!disponiveis.length && !jaNesteL.length){
+    el.innerHTML=`<div style="font-size:11px;color:var(--mu);padding:8px 0;">Todos os pedidos já estão em pacotes.</div>`;
+    atualizarContadorLote();
+  } else {
+    // Deduplicar: usar Set de IDs para evitar duplicatas
+    const vistosIds = new Set();
+    const todos = [...jaNesteL, ...disponiveis].filter(p=>{
+      if(vistosIds.has(p.id)) return false;
+      vistosIds.add(p.id);
+      return true;
+    });
+    // Agrupar por modelo
+    const grupos = {};
+    todos.forEach(p=>{
+      const key = p.modelo;
+      if(!grupos[key]) grupos[key] = {mod:getMod(p.modelo), tipo:getProd(p.prodId).label, itens:[]};
+      grupos[key].itens.push(p);
+    });
+    // Ordenar grupos: jogador antes de torcedor, dentro de cada tipo alfabético
+    const ordenados = Object.values(grupos).sort((a,b)=>{
+      const ta = a.itens[0]?.prodId||""; const tb = b.itens[0]?.prodId||"";
+      if(ta!==tb) return ta==="jogador"?-1:1;
+      return a.mod.label.localeCompare(b.mod.label);
+    });
+
+    el.innerHTML = ordenados.map(g=>{
+      const header = `<div style="display:flex;align-items:center;gap:6px;padding:6px 0 4px;
+        border-bottom:2px solid ${g.mod.cor}44;margin-bottom:2px;">
+        <div style="width:7px;height:7px;border-radius:50%;background:${g.mod.cor};flex-shrink:0;"></div>
+        <span style="font-size:10px;font-weight:700;color:${g.mod.cor};">${g.mod.label}</span>
+        <span style="font-size:9px;color:var(--mu);margin-left:2px;">· ${g.tipo.replace("Camiseta ","")}</span>
+      </div>`;
+      const rows = g.itens.map(p=>`
+        <label style="display:flex;align-items:center;gap:8px;padding:7px 0 7px 14px;border-bottom:1px solid var(--br);cursor:pointer;">
+          <input type="checkbox" value="${p.id}" ${(id && p.loteId===id)?"checked":""}
+            style="accent-color:var(--gold);width:14px;height:14px;cursor:pointer;"
+            onchange="atualizarContadorLote()">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;color:var(--iv);">${p.cliente}</div>
+            <div style="font-size:10px;color:var(--mu);">${p.tamanho}${p.personalizacao?" · "+p.nomePerso+" #"+p.numero:""}</div>
+          </div>
+          <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--mu);flex-shrink:0;">×${p.qtd||1}</span>
+        </label>`).join("");
+      return header + rows;
+    }).join("");
+    atualizarContadorLote();
+  }
+  showForm("pg-lote-form","novo pacote");
+  } catch(err) {
+    console.error("openLoteForm error:", err);
+    toast("Erro ao abrir formulário: "+err.message, false);
+  }
+}
+
+function atualizarContadorLote(){
+  const cbs = document.querySelectorAll("#lfPedList input[type=checkbox]");
+  // Contar peças marcadas
+  let pecasMarcadas = 0;
+  cbs.forEach(cb=>{
+    if(cb.checked){
+      const p = pedidos.find(x=>x.id===cb.value);
+      pecasMarcadas += p ? (p.qtd||1) : 1;
+    }
+  });
+  const max = 8;
+  const pct_val = Math.min(100, Math.round((pecasMarcadas/max)*100));
+  const cor = pecasMarcadas > max ? "var(--re)" : pecasMarcadas === max ? "var(--gr)" : "var(--gold)";
+
+  const contEl  = document.getElementById("lfContador");
+  const barEl   = document.getElementById("lfContadorBar");
+  if(contEl) { contEl.textContent = pecasMarcadas+" / "+max; contEl.style.color=cor; }
+  if(barEl)  { barEl.style.width=pct_val+"%"; barEl.style.background=cor; }
+
+  // Bloquear checkboxes se já atingiu 8 peças
+  cbs.forEach(cb=>{
+    if(!cb.checked){
+      const p = pedidos.find(x=>x.id===cb.value);
+      const qtdP = p ? (p.qtd||1) : 1;
+      // Desabilitar se marcar esse pedido ultrapassaria o limite
+      const bloqueado = (pecasMarcadas + qtdP) > max;
+      cb.disabled = bloqueado;
+      const label = cb.closest("label");
+      if(label) label.style.opacity = bloqueado ? "0.4" : "1";
+    }
+  });
+}
+
+function previewLote(){
+  const lfTotEl=document.getElementById("lfTotal"); const tot=parseInt(lfTotEl?.value)||0;
+  const lfTaxEl=document.getElementById("lfTaxa"); const taxa=parseFloat(lfTaxEl?.value)||0;
+  const prev=document.getElementById("lfPreview");
+  if(tot>0&&taxa>0){
+    const tp=taxa/tot;
+    const tppEl=document.getElementById("lfTpp"); if(tppEl) tppEl.textContent=brl(tp);
+    if(prev) prev.style.display="block";
+  }else if(prev) prev.style.display="none";
+}
+
+function salvarLote(){
+  try{
+    const numEl = document.getElementById("lfNum");
+    if(!numEl){ toast("Erro: formulário não encontrado.",false); return; }
+    const num = numEl.value.trim();
+    if(!num){ 
+      // Destacar campo
+      numEl.style.borderColor="var(--re)";
+      numEl.focus();
+      toast("Informe o número do pedido",false);
+      setTimeout(()=>numEl.style.borderColor="",2000);
+      return;
+    }
+
+    const loteId = editLoteId || uid();
+    const respId = document.getElementById("lfResp").value || null;
+    const novoLote = {
+      id:             loteId,
+      num:            num,
+      data:           document.getElementById("lfData").value || "",
+      desc:           document.getElementById("lfDesc").value || "",
+      responsavelId:  respId,
+      totalPecas:     0,   // calculado ao marcar peças
+      taxa:           0,   // preenchido na aba Envio ao chegar no Brasil
+    };
+
+    if(editLoteId){
+      const i = lotes.findIndex(x=>x.id===editLoteId);
+      if(i>=0) lotes[i] = novoLote; else lotes.push(novoLote);
+    } else {
+      lotes.push(novoLote);
+    }
+    persist("ap6_lot", lotes);
+
+    // Ler checkboxes AGORA (antes de qualquer navegação que destrua o DOM)
+    const cbs = document.querySelectorAll("#lfPedList input[type=checkbox]");
+    const marcados = new Set();
+    const desmarcados = new Set();
+    cbs.forEach(function(cb){
+      if(cb.checked) marcados.add(cb.value);
+      else desmarcados.add(cb.value);
+    });
+
+    // Vincular marcados; desmarcar só pedidos SEM pedido que foram desmarcados (não mexer em pedidos de outros pedidos)
+    pedidos = pedidos.map(function(p){
+      if(marcados.has(p.id)){
+        // Vincular a este pedido
+        const custo = calcCusto(p.prodId, loteId);
+        const venda = p.precoFinal || 0;
+        return {...p, loteId:loteId, custo_total:custo, lucro:venda-custo, margem:venda>0?((venda-custo)/venda)*100:0};
+      }
+      // Não mexer em pedidos que não estão na lista (já em outros pedidos)
+      return p;
+    });
+    persist("ap6_ped", pedidos);
+
+    // Recalcular totalPecas do pacote automaticamente
+    const pecasNoLote = Array.from(marcados).reduce((a,pid)=>{
+      const p=pedidos.find(x=>x.id===pid); return a+(p?p.qtd||1:1);
+    },0);
+    const liIdx = lotes.findIndex(x=>x.id===loteId);
+    if(liIdx>=0){ lotes[liIdx].totalPecas=pecasNoLote; persist("ap6_lot",lotes); }
+
+    // Também fix alert
+    editLoteId = null;
+    updHdr();
+    toast("Pacote " + num + " · " + pecasNoLote + " peça(s) registrada(s) ✓");
+    goTab("lotes");
+  } catch(err){
+    toast("Erro: " + err.message, false); console.error(err);
+    console.error(err);
+  }
+}
+
+function delLote(id){
+  showConfirm("Remover este pacote?","Remover",ok=>{
+    if(!ok)return;
+    lotes=lotes.filter(l=>l.id!==id);
+    pedidos=pedidos.map(p=>{
+      if(p.loteId!==id)return p;
+      const custo=calcCusto(p.prodId,null),venda=p.precoFinal||0;
+      return{...p,loteId:null,custo_total:custo,lucro:venda-custo,margem:venda>0?((venda-custo)/venda)*100:0};
+    });
+    persist("ap6_lot",lotes);persist("ap6_ped",pedidos);
+    renderLotes();toast("Pacote removido",false);
+  });
+}
+
+function resumoLote(id){
+  const l=getLote(id);if(!l)return;
+  const ps=pedidos.filter(p=>p.loteId===id);
+  const grupos={};
+  ps.forEach(p=>{
+    if(!grupos[p.modelo])grupos[p.modelo]={label:getMod(p.modelo).label,itens:[]};
+    for(let i=0;i<(p.qtd||1);i++)grupos[p.modelo].itens.push(p);
+  });
+  const tot=ps.reduce((a,p)=>a+(p.qtd||1),0);
+  const tp=l.totalPecas>0?l.taxa/l.totalPecas:0;
+  let txt=`📦 LOTE Nº ${l.num}\nTotal: ${tot} peças  ·  Taxa: ${brl(tp)}/peça\n\n`;
+  txt+=Object.values(grupos).map(g=>
+    `${g.label} (${g.itens.length})\n`+
+    g.itens.map(p=>`  • ${getProd(p.prodId).label} | ${p.genero} | ${p.tamanho}${p.personalizacao?` (${p.nomePerso} #${p.numero})`:""}`).join("\n")
+  ).join("\n\n")+"\n\nConfirmar disponibilidade e prazo.";
+  openModal(`📦 Pedido ${l.num}`,`
+    <pre id="loteTxt" style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:12px;font-size:11px;color:var(--iv);white-space:pre-wrap;font-family:'JetBrains Mono',monospace;line-height:1.7;max-height:260px;overflow-y:auto;margin-bottom:12px;">${txt}</pre>
+    <button class="btn gold full" onclick="navigator.clipboard.writeText(document.getElementById('loteTxt').textContent).then(()=>toast('Copiado ✓'))">📋 Copiar</button>
+  `);
+}
+
+// ═══════════════════
+// CAIXA
+// ═══════════════════
+function renderCaixa(){
+  const totFat=pedidos.reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0);
+  const recP=pags.reduce((a,pg)=>a+(pg.parcelas||[]).filter(x=>x.recebido).reduce((b,x)=>b+(x.valor||0),0),0);
+  const ent=pags.filter(x=>x.status==="entregue"||x.status==="recebido").length;
+  document.getElementById("cxKpis").innerHTML=[
+    {l:"Faturamento total",v:brl(totFat),c:"var(--gold)"},
+    {l:"Recebido",v:brl(recP),c:"var(--gr)"},
+    {l:"A receber",v:brl(totFat-recP),c:"var(--or)"},
+    {l:"Entregues",v:ent,c:"var(--iv)",s:"pedidos"},
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv" style="color:${k.c};">${k.v}</div>${k.s?`<div class="ks">${k.s}</div>`:""}</div>`).join("");
+
+  const b=(document.getElementById("cxBusca")?.value||"").toLowerCase();
+  const fs=document.getElementById("cxFSt")?.value||"";
+  const lista=pedidos.filter(p=>{
+    const pg=getPag(p.id)||{status:"pendente"};
+    return(!b||p.cliente.toLowerCase().includes(b))&&(!fs||pg.status===fs);
+  });
+  const el=document.getElementById("cxList");
+  if(!lista.length){el.innerHTML=`<div class="card" style="text-align:center;padding:32px;"><div style="color:var(--mu);font-size:12px;">Nenhum registro.</div></div>`;return;}
+  el.innerHTML=lista.map(p=>{
+    const pg=getPag(p.id)||{status:"pendente",parcelas:[]};
+    const st=pg.entregue?"entregue":(pg.status||"pendente");
+    const rp=(pg.parcelas||[]).filter(x=>x.recebido).reduce((a,x)=>a+(x.valor||0),0);
+    const tp=(pg.parcelas||[]).reduce((a,x)=>a+(x.valor||0),0);
+    return`<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 11px;background:var(--s1);border:1px solid var(--br);border-radius:7px;margin-bottom:5px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:100px;">
+        <div style="font-weight:600;font-size:12px;">${p.cliente}</div>
+        <div style="font-size:10px;color:var(--mu);margin-top:2px;">${getMod(p.modelo).label} · ${getProd(p.prodId).label} ${p.tamanho}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold);">${brl(p.precoFinal||0)}</div>
+        ${rp>0&&rp<tp?`<div style="font-size:9px;color:var(--gr);font-weight:600;">✓ Rec: ${brl(rp)}</div>`:""}
+      </div>
+      <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+        <span class="stpill" style="background:${stCol(st)}22;color:${stCol(st)};border:1px solid ${stCol(st)}33;">${stLbl(st)}</span>
+        <button class="btn ghost sm" onclick="openCxDet('${p.id}')">Gerenciar</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openCxDet(pedId){
+  curTab="caixa"; curCxId=pedId;
+  const p=pedidos.find(x=>x.id===pedId); if(!p) return;
+  let pg=getPag(pedId);
+  if(!pg){
+    pg={id:uid(),pedidoId:pedId,entregue:false,parcelas:[{valor:p.precoFinal||0,recebido:false,vencimento:""}]};
+    pags.push(pg); persist("ap6_pag",pags);
+  }
+  // Migrar status antigo se necessário
+  if(pg.status && pg.entregue===undefined){
+    pg.entregue = (pg.status==="entregue"||pg.status==="recebido");
+    if(pg.status==="recebido") pg.parcelas=(pg.parcelas||[]).map(x=>({...x,recebido:true}));
+    delete pg.status;
+    persist("ap6_pag",pags);
+  }
+
+  const lot = p.loteId ? getLote(p.loteId) : null;
+  const mod = getMod(p.modelo);
+  const pr  = getProd(p.prodId);
+  const totPedido = (p.precoFinal||0);  // valor acordado do pedido
+  const totPago = (pg.parcelas||[]).filter(x=>x.recebido).reduce((a,x)=>a+(x.valor||0),0);
+  const restante = totPedido - totPago;
+
+  const cxTEl=document.getElementById("cxDetTtl"); if(cxTEl) cxTEl.textContent = p.cliente;
+  document.getElementById("cxDetBody").innerHTML = `
+
+    <!-- Info do pedido -->
+    <div style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:12px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${mod.cor};flex-shrink:0;"></div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--iv);">${mod.label}</div>
+          <div style="font-size:11px;color:var(--mu);">${pr.label} · ${p.tamanho} · ${p.genero}${p.personalizacao?` · ✦ ${p.nomePerso} #${p.numero}`:""}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--gold);">${brl(p.precoFinal||0)}</div>
+        ${lot?`<span style="font-size:10px;color:var(--mu);background:var(--s3);border-radius:4px;padding:2px 8px;">📦 Pacote ${lot.num}</span>`:""}
+      </div>
+      ${p.obs?`<div style="font-size:10px;color:var(--mu);margin-top:6px;">💬 ${p.obs}</div>`:""}
+    </div>
+
+    <!-- Entrega -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Entrega da camiseta</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0;">
+        <button class="btn full ${!pg.entregue?"gold":"dim"}" onclick="setEntrega('${pedId}',false)"
+          style="padding:10px;font-size:12px;">⏳ Aguardando</button>
+        <button class="btn full ${pg.entregue?"ok":"dim"}" onclick="setEntrega('${pedId}',true)"
+          style="padding:10px;font-size:12px;">✅ Entregue</button>
+      </div>
+    </div>
+
+    <!-- Resumo financeiro -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;min-width:0;margin-bottom:14px;">
+      <div style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Total</div>
+        <div id="cx-total" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--gold);">${brl(totPedido)}</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid ${totPago>0?"var(--gr)":"var(--br)"};border-radius:7px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Pago</div>
+        <div id="cx-recebido" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--gr);">${brl(totPago)}</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid ${restante>0?"var(--or)":"var(--br)"};border-radius:7px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">A receber</div>
+        <div id="cx-pendente" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${restante>0?"var(--or)":"var(--mu)"};">${brl(restante)}</div>
+      </div>
+    </div>
+
+    <!-- Parcelas -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Parcelas de pagamento</div>
+      <button class="btn ghost sm" onclick="addParc('${pedId}')">＋ Parcela</button>
+    </div>
+    <div id="parcList"></div>
+  `;
+  renderParcs(pedId);
+  showForm("pg-caixa-det","pagamento");
+}
+
+
+function renderParcs(pedId){
+  const pg=getPag(pedId); const el=document.getElementById("parcList");
+  if(!el||!pg) return;
+  el.innerHTML=(pg.parcelas||[]).map((pc,i)=>`
+    <div style="background:var(--s2);border:1px solid ${pc.recebido?"var(--gr)44":"var(--br)"};
+      border-radius:7px;padding:11px 12px;margin-bottom:7px;">
+      <div class="fld" style="margin-bottom:9px;">
+        <label>Valor</label>
+        <div class="iu">
+          <input class="inp" type="number" step="0.01" value="${pc.valor}"
+            style="min-width:0;width:100%;font-size:15px;font-weight:600;"
+            onchange="updParc('${pedId}',${i},'valor',this.value)">
+          <span>R$</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <button onclick="updParc('${pedId}',${i},'rec',${!pc.recebido})"
+          style="flex:1;padding:8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none;
+            background:${pc.recebido?"var(--gr)22":"var(--s3)"};
+            color:${pc.recebido?"var(--gr)":"var(--mu)"};
+            border:1px solid ${pc.recebido?"var(--gr)44":"var(--br)"};">
+          ${pc.recebido?"✓ Pago":"Marcar como pago"}
+        </button>
+        ${pg.parcelas.length>1?`<button class="btn danger sm" onclick="delParc('${pedId}',${i})">✕</button>`:""}
+      </div>
+    </div>`).join("");
+}
+
+
+function setEntrega(pedId, entregue){
+  const i=pags.findIndex(x=>x.pedidoId===pedId);
+  if(i>=0){ pags[i].entregue=entregue; persist("ap6_pag",pags); }
+  openCxDet(pedId);
+  toast(entregue?"✅ Marcado como entregue":"⏳ Aguardando entrega");
+}
+function setSt(pedId,status){
+  const i=pags.findIndex(x=>x.pedidoId===pedId);if(i>=0){pags[i].status=status;persist("ap6_pag",pags);}
+  openCxDet(pedId);toast("Status atualizado ✓");
+}
+function addParc(pedId){
+  const i=pags.findIndex(x=>x.pedidoId===pedId);if(i<0)return;
+  pags[i].parcelas.push({valor:0,recebido:false,vencimento:""});
+  persist("ap6_pag",pags);
+  renderParcs(pedId);
+  atualizarResumoCx(pedId);
+}
+function delParc(pedId,idx){
+  const i=pags.findIndex(x=>x.pedidoId===pedId);if(i<0)return;
+  pags[i].parcelas.splice(idx,1);
+  persist("ap6_pag",pags);
+  renderParcs(pedId);
+  atualizarResumoCx(pedId);
+}
+function updParc(pedId,idx,field,value){
+  const i=pags.findIndex(x=>x.pedidoId===pedId);if(i<0)return;
+  if(field==="valor")pags[i].parcelas[idx].valor=parseFloat(value)||0;
+  if(field==="venc")pags[i].parcelas[idx].vencimento=value;
+  if(field==="rec")pags[i].parcelas[idx].recebido=Boolean(value);
+  persist("ap6_pag",pags);
+  renderParcs(pedId);
+  atualizarResumoCx(pedId);
+}
+
+function atualizarResumoCx(pedId){
+  const pg=getPag(pedId); if(!pg) return;
+  const p=pedidos.find(x=>x.id===pedId); if(!p) return;
+  const totPedido=(p.precoFinal||0);
+  const totPago=(pg.parcelas||[]).filter(x=>x.recebido).reduce((a,x)=>a+(x.valor||0),0);
+  const rest=totPedido-totPago;
+  const elT=document.getElementById("cx-total");
+  const elR=document.getElementById("cx-recebido");
+  const elP=document.getElementById("cx-pendente");
+  try{
+    if(elT) elT.textContent=brl(totPedido);
+    if(elR) elR.textContent=brl(totPago);
+    if(elP){ elP.textContent=brl(rest); elP.style.color=rest>0?"var(--or)":"var(--mu)"; }
+  }catch(e){}
+}
+
+// ═══════════════════
+// DASHBOARD
+// ═══════════════════
+function renderDash(){
+  if(!pedidos.length){
+    document.getElementById("dKpis").innerHTML=`<div class="card" style="grid-column:1/-1;text-align:center;padding:38px;"><div style="font-size:26px;margin-bottom:8px;">📊</div><div style="color:var(--mu);font-size:12px;">Registre pedidos para ver as análises.</div></div>`;
+    ["dMed","dChart","dMarg","dProd","dMod","dTam","dLot","dPerso"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML="";});
+    if(chartRef){chartRef.destroy();chartRef=null;}
+    return;
+  }
+  const totP=pedidos.reduce((a,p)=>a+(p.qtd||1),0);
+  const totR=pedidos.reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0);
+  const totC=pedidos.reduce((a,p)=>a+(p.custo_total||0)*(p.qtd||1),0);
+  const totL=totR-totC,margG=totR>0?(totL/totR)*100:0;
+
+  const totRec=pags.reduce((a,pg)=>(pg.parcelas||[]).filter(x=>x.recebido).reduce((b,x)=>b+(x.valor||0),a),0);
+  document.getElementById("dKpis").innerHTML=[
+    {l:"Peças vendidas",v:totP,s:"unidades",c:"var(--gold)"},
+    {l:"Faturamento",v:brl(totR),c:"var(--gold)"},
+    {l:"Total pago",v:brl(totRec),c:"var(--gr)",s:"de "+brl(totR)},
+    {l:"Lucro bruto",v:brl(totL),c:totL>=0?"var(--gr)":"var(--re)",s:"margem "+pct(margG)},
+  ].map(k=>`<div class="kpi-lg"><div class="kl">${k.l}</div><div class="kv" style="color:${k.c};">${k.v}</div>${k.s?`<div class="ks">${k.s}</div>`:""}</div>`).join("");
+
+  const mesMap={};
+  pedidos.forEach(p=>{
+    const d=(p.dataPedido||p.createdAt||"").slice(0,7);if(!d)return;
+    if(!mesMap[d])mesMap[d]={r:0,l:0,c:0,q:0};
+    mesMap[d].q+=p.qtd||1;mesMap[d].r+=(p.precoFinal||0)*(p.qtd||1);
+    mesMap[d].l+=(p.lucro||0)*(p.qtd||1);mesMap[d].c+=(p.custo_total||0)*(p.qtd||1);
+  });
+  const meses=Object.values(mesMap);
+  document.getElementById("dMed").innerHTML=[
+    {l:"Lucro médio/peça",v:brl(totP>0?totL/totP:0),c:"var(--gr)"},
+    {l:"Fat. médio/mês",v:brl(meses.length?meses.reduce((a,m)=>a+m.r,0)/meses.length:0),c:"var(--gold)"},
+    {l:"Lucro médio/mês",v:brl(meses.length?meses.reduce((a,m)=>a+m.l,0)/meses.length:0),c:"var(--gr)"},
+  ].map(x=>`<div class="hb" style="padding:14px;"><div class="hbl">${x.l}</div><div class="hbv" style="color:${x.c};font-size:16px;">${x.v}</div></div>`).join("");
+
+  const mk=Object.keys(mesMap).sort();
+  // Labels legíveis: "mai/25" em vez de "2025-05"
+  const mkLabels=mk.map(k=>{const[y,m]=k.split("-");const meses=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];return meses[(parseInt(m)||1)-1]+"/"+y.slice(2);});
+  document.getElementById("dChart").innerHTML=`<div class="dcard-title">Faturamento · Custo · Lucro por mês</div><div style="position:relative;height:220px;"><canvas id="cv"></canvas></div>`;
+  if(chartRef){chartRef.destroy();chartRef=null;}
+  if(mk.length){
+    chartRef=new Chart(document.getElementById("cv").getContext("2d"),{
+      type:"line",
+      data:{labels:mkLabels,datasets:[
+        {label:"Faturamento",data:mk.map(k=>mesMap[k].r),
+          borderColor:"#C9A84C",backgroundColor:"var(--blue-lt)",borderWidth:2.5,
+          tension:.4,pointRadius:5,pointBackgroundColor:"#C9A84C",pointBorderColor:"#080808",pointBorderWidth:2,fill:true},
+        {label:"Lucro",data:mk.map(k=>mesMap[k].l),
+          borderColor:"#27AE60",backgroundColor:"#27AE6012",borderWidth:2.5,
+          tension:.4,pointRadius:5,pointBackgroundColor:"#27AE60",pointBorderColor:"#080808",pointBorderWidth:2,fill:true},
+        {label:"Custo",data:mk.map(k=>mesMap[k].c),
+          borderColor:"#C0392B",backgroundColor:"transparent",borderWidth:1.5,
+          borderDash:[4,3],tension:.4,pointRadius:4,pointBackgroundColor:"#C0392B",fill:false},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        interaction:{mode:"index",intersect:false},
+        plugins:{
+          legend:{labels:{color:"#8A8070",font:{size:10},boxWidth:10,padding:12}},
+          tooltip:{backgroundColor:"#161616",titleColor:"#EDE8DE",bodyColor:"#8A8070",borderColor:"#252525",borderWidth:1,
+            callbacks:{label:ctx=>" "+ctx.dataset.label+": "+brl(ctx.raw)}}
+        },
+        scales:{
+          x:{ticks:{color:"#6A6357",font:{size:10}},grid:{color:"#1E1E1E"},border:{color:"#252525"}},
+          y:{ticks:{color:"#6A6357",font:{size:10},callback:v=>brl(v)},grid:{color:"#1E1E1E"},border:{color:"#252525"}}
+        }}
+    });
+  }
+
+  document.getElementById("dMarg").innerHTML=`<div class="dcard-title">Margens por produto</div>`+
+    produtos.map(pr=>{
+      const c=(pr.custoUSD||0)*cfg.cotacao,v=pr.vendaBRL||0,l=v-c,m=v>0?(l/v)*100:0;
+      const mc=m>=35?"var(--gr)":m>=20?"var(--gold)":"var(--re)";
+      return`<div class="sr"><span class="sl">${pr.label}</span><div style="text-align:right;"><span class="sv" style="color:${mc};">${pct(m)}</span><div style="font-size:9px;color:var(--mu);">Custo ${brl(c)} · Venda ${brl(v)} · Lucro ${brl(l)}</div></div></div>`;
+    }).join("");
+
+  const pd=produtos.map(pr=>{const ps=pedidos.filter(p=>p.prodId===pr.id);const q=ps.reduce((a,p)=>a+(p.qtd||1),0),r=ps.reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0),l=ps.reduce((a,p)=>a+(p.lucro||0)*(p.qtd||1),0);return{label:pr.label,q,r,l};}).filter(x=>x.q>0);
+  document.getElementById("dProd").innerHTML=`<div class="dcard-title">Vendas por produto</div>`+pd.map(d=>`<div class="sr"><div><div style="font-size:12px;font-weight:600;">${d.label}</div><div style="font-size:9px;color:var(--mu);">${d.q} un.</div></div><div style="text-align:right;"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold);">${brl(d.r)}</div><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${d.l>=0?"var(--gr)":"var(--re)"};">${brl(d.l)}</div></div></div>`).join("");
+
+  const md=modelos.map(m=>{const v=pedidos.filter(p=>p.modelo===m.id).reduce((a,p)=>a+(p.qtd||1),0);return{label:m.label,cor:m.cor,v};}).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const maxM=Math.max(...md.map(x=>x.v),1);
+  document.getElementById("dMod").innerHTML=md.length?`<div class="dcard"><div class="dcard-title">Modelos mais vendidos</div>`+
+    md.map(d=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--br);">
+      <div style="width:8px;height:8px;border-radius:50%;background:${d.cor};flex-shrink:0;"></div>
+      <div style="flex:1;font-size:12px;color:var(--iv);">${d.label}</div>
+      <div style="flex:2;height:6px;background:var(--s3);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${Math.round((d.v/maxM)*100)}%;background:${d.cor};border-radius:3px;transition:width .5s;"></div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${d.cor};width:20px;text-align:right;flex-shrink:0;">${d.v}</div>
+    </div>`).join("")+`</div>`:"";
+
+  const tc=["#C9A84C","#2e86c1","#1e8449","#7d3c98","#b03a2e","#b7950b","#117a65"];
+  const td=["PP","P","M","G","GG","XGG","Único"].map(t=>({label:t,v:pedidos.filter(p=>p.tamanho===t).reduce((a,p)=>a+(p.qtd||1),0)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const maxT=Math.max(...td.map(x=>x.v),1);
+  document.getElementById("dTam").innerHTML=td.length?`<div class="dcard-title">Tamanhos</div>`+
+    td.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--br);">
+      <div style="width:28px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:${tc[i%7]};flex-shrink:0;">${d.label}</div>
+      <div style="flex:1;height:10px;background:var(--s3);border-radius:5px;overflow:hidden;">
+        <div style="height:100%;width:${Math.round((d.v/maxT)*100)}%;background:${tc[i%7]};border-radius:5px;transition:width .5s;"></div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${tc[i%7]};width:20px;text-align:right;flex-shrink:0;">${d.v}</div>
+    </div>`).join("")+"":"";
+
+  const ld=lotes.map(l=>{const ps=pedidos.filter(p=>p.loteId===l.id),q=ps.reduce((a,p)=>a+(p.qtd||1),0),r=ps.reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0),lc=ps.reduce((a,p)=>a+(p.lucro||0)*(p.qtd||1),0),tp=l.totalPecas>0?l.taxa/l.totalPecas:0;return{...l,q,r,lc,tp};}).filter(x=>x.q>0);
+  document.getElementById("dLot").innerHTML=ld.length?`<div class="dcard-title">Resultado por pedido</div>`+ld.map(l=>`<div class="sr"><div><div style="font-size:12px;font-weight:600;">Pedido ${l.num}</div><div style="font-size:9px;color:var(--mu);">${l.q} pedido(s) · ${brl(l.tp)}/peça</div></div><div style="text-align:right;"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold);">${brl(l.r)}</div><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${l.lc>=0?"var(--gr)":"var(--re)"};">${brl(l.lc)}</div></div></div>`).join(""):"";
+
+  const comP=pedidos.filter(p=>p.personalizacao).reduce((a,p)=>a+(p.qtd||1),0);
+  document.getElementById("dPerso").innerHTML=`<div class="dcard-title">Personalização</div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;"><span style="font-size:11px;color:var(--mu);">Com personalização</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--gold);">${comP}<span style="font-size:9px;color:var(--mu);"> / ${totP}</span></span></div><div class="prog"><div class="pf" style="width:${totP>0?(comP/totP)*100:0}%;background:var(--blue);"></div></div>`;
+}
+
+// ═══════════════════
+// CONFIG
+// ═══════════════════
+function renderCfg(){
+  document.getElementById("cfgCot").value=cfg.cotacao;
+  renderProdTable();renderModList();renderUsuarios();
+}
+function renderProdTable(){
+  document.getElementById("cfgProd").innerHTML=produtos.map((pr,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--br);flex-wrap:wrap;">
+      <div style="font-size:12px;font-weight:500;flex:1;min-width:80px;">${pr.label}</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div class="iu" style="width:82px;"><input class="inp" type="number" step="0.01" value="${pr.custoUSD}" oninput="produtos[${i}].custoUSD=parseFloat(this.value)||0;" style="width:82px;font-size:11px;"><span>$</span></div>
+        <div class="iu" style="width:94px;"><input class="inp" type="number" step="0.01" value="${pr.vendaBRL}" oninput="produtos[${i}].vendaBRL=parseFloat(this.value)||0;" style="width:94px;font-size:11px;"><span>R$</span></div>
+        <button class="btn danger sm" onclick="delProduto(${i})">✕</button>
+      </div>
+    </div>`).join("");
+}
+function addProduto(){const n=prompt("Nome do produto:");if(!n?.trim())return;produtos.push({id:n.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,""),label:n.trim(),custoUSD:0,vendaBRL:0});renderProdTable();}
+function delProduto(i){showConfirm("Remover este produto?","Remover",ok=>{if(!ok)return;produtos.splice(i,1);renderProdTable();});}
+function salvarCfg(){
+  cfg.cotacao=parseFloat(document.getElementById("cfgCot").value)||0;
+  persist("ap6_cfg",cfg);persist("ap6_prd",produtos);persist("ap6_usr",usuarios);
+  pedidos=pedidos.map(p=>{if(p.loteId)return p;const c=calcCusto(p.prodId,null),v=p.precoFinal||0;return{...p,custo_total:c,lucro:v-c,margem:v>0?((v-c)/v)*100:0};});
+  persist("ap6_ped",pedidos);toast("Configurações salvas ✓");
+}
+function renderModList(){
+  document.getElementById("cfgModList").innerHTML=modelos.map(m=>`
+    <div style="display:flex;align-items:center;gap:7px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:7px 10px;margin-bottom:4px;opacity:${m.ativo?1:.5};">
+      <div style="width:8px;height:8px;border-radius:50%;background:${m.cor};flex-shrink:0;"></div>
+      <div style="flex:1;font-size:12px;font-weight:500;">${m.label}${!m.ativo?` <span style="font-size:9px;color:var(--mu);">· inativo</span>`:""}</div>
+      <input type="color" value="${m.cor}" onchange="setMCor('${m.id}',this.value)" style="width:20px;height:20px;border:1px solid var(--br);border-radius:4px;background:none;cursor:pointer;padding:1px;flex-shrink:0;">
+      <button class="btn ghost sm" onclick="editMod('${m.id}')">✏️</button>
+      <button class="btn sm ${m.ativo?"dim":"ok"}" onclick="togMod('${m.id}')">${m.ativo?"Off":"On"}</button>
+      <button class="btn danger sm" onclick="delMod('${m.id}')">✕</button>
+    </div>`).join("");
+}
+function addModelo(){const l=document.getElementById("cfgModLabel").value.trim();if(!l)return;const c=document.getElementById("cfgModCor").value;modelos.push({id:l.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,""),label:l,cor:c,ativo:true});document.getElementById("cfgModLabel").value="";persist("ap6_mod",modelos);renderModList();fillModFilter();toast("Modelo adicionado ✓");}
+function togMod(id){modelos=modelos.map(m=>m.id===id?{...m,ativo:!m.ativo}:m);persist("ap6_mod",modelos);renderModList();fillModFilter();}
+function delMod(id){showConfirm("Remover este modelo?","Remover",ok=>{if(!ok)return;modelos=modelos.filter(m=>m.id!==id);persist("ap6_mod",modelos);renderModList();fillModFilter();});}
+function editMod(id){const m=modelos.find(x=>x.id===id);if(!m)return;const n=prompt("Novo nome:",m.label);if(!n?.trim())return;modelos=modelos.map(x=>x.id===id?{...x,label:n.trim()}:x);persist("ap6_mod",modelos);renderModList();fillModFilter();}
+function setMCor(id,cor){modelos=modelos.map(m=>m.id===id?{...m,cor}:m);persist("ap6_mod",modelos);renderModList();}
+
+// ═══════════════════
+// USUÁRIOS
+// ═══════════════════
+function renderUsuarios(){
+  const el=document.getElementById("cfgUsuarios");if(!el)return;
+  el.innerHTML=usuarios.map((u,i)=>`
+    <div style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:11px 12px;margin-bottom:8px;">
+      <div class="g2" style="gap:8px;margin-bottom:8px;">
+        <div class="fld" style="margin-bottom:0;"><label>Nome</label>
+          <input class="inp" value="${u.nome}" oninput="usuarios[${i}].nome=this.value;persist('ap6_usr',usuarios);" placeholder="Nome"></div>
+        <div class="fld" style="margin-bottom:0;"><label>Cargo / Papel</label>
+          <input class="inp" value="${u.cargo||''}" oninput="usuarios[${i}].cargo=this.value;persist('ap6_usr',usuarios);" placeholder="Ex: Sócio"></div>
+      </div>
+      <div class="fld" style="margin-bottom:0;"><label>Contato (WhatsApp)</label>
+        <input class="inp" value="${u.contato||''}" oninput="usuarios[${i}].contato=this.value;persist('ap6_usr',usuarios);" placeholder="(11) 99999-9999"></div>
+      ${usuarios.length>1?`<div style="text-align:right;margin-top:8px;"><button class="btn danger sm" onclick="delUsuario(${i})">Remover</button></div>`:""}
+    </div>`).join("");
+}
+function addUsuario(){
+  usuarios.push({id:"u"+Date.now(),nome:"",contato:"",cargo:""});
+  persist("ap6_usr",usuarios);renderUsuarios();
+}
+function delUsuario(i){
+  showConfirm("Remover usuário?","Remover",ok=>{if(!ok)return;usuarios.splice(i,1);persist("ap6_usr",usuarios);renderUsuarios();});
+}
+
+// ═══════════════════
+// TRANSPORTADORA
+// ═══════════════════
+
+function renderTransp(){
+  const el = document.getElementById("transpList");
+  if(!lotes.length){
+    el.innerHTML=`<div class="card" style="text-align:center;padding:40px;">
+      <div style="font-size:28px;margin-bottom:8px;">🚚</div>
+      <div style="color:var(--mu);font-size:12px;">Nenhum pacote registrado ainda.</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = lotes.map(l=>{
+    const st   = TRANSP_STATUS.find(x=>x.id===(l.envioStatus||"aguardando")) || TRANSP_STATUS[0];
+    const ps   = pedidos.filter(p=>p.loteId===l.id);
+    const qtd  = ps.reduce((a,p)=>a+(p.qtd||1),0);
+    const resp = l.responsavelId ? (usuarios.find(u=>u.id===l.responsavelId)||{nome:"—"}).nome : "—";
+    const chegou = l.envioStatus==="chegou_br" || l.envioStatus==="taxa_paga" || l.envioStatus==="entregue";
+    const semTaxa = chegou && (!l.taxa || l.taxa===0);
+
+    // Timeline de status
+    const timeline = TRANSP_STATUS.map((s,i)=>{
+      const ativo = s.id === (l.envioStatus||"aguardando");
+      const passou = TRANSP_STATUS.findIndex(x=>x.id===(l.envioStatus||"aguardando")) >= i;
+      return `<div onclick="setEnvioStatus('${l.id}','${s.id}')"
+        style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;flex:1;min-width:0;">
+        <div style="width:30px;height:30px;border-radius:50%;
+          background:${ativo?s.cor:passou?s.cor+"44":"var(--s3)"};
+          border:2px solid ${passou?s.cor:"var(--br)"};
+          display:flex;align-items:center;justify-content:center;
+          font-size:${ativo?14:11}px;transition:all .2s;">
+          ${s.icon}
+        </div>
+        <div style="font-size:8px;text-align:center;color:${ativo?s.cor:passou?"var(--iv)":"var(--mu)"};
+          font-weight:${ativo?700:400};line-height:1.2;max-width:52px;word-wrap:break-word;">
+          ${s.label}
+        </div>
+      </div>`;
+    }).join(`<div style="flex:1;height:2px;background:var(--br);margin-top:14px;max-width:16px;"></div>`);
+
+    return `<div class="card" style="margin-bottom:10px;">
+
+      <!-- Header: pacote + status atual -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--iv);">
+            Pacote ${l.num}${l.desc?` <span style="font-size:11px;color:var(--mu);font-weight:400;">· ${l.desc}</span>`:""}
+          </div>
+          <div style="font-size:10px;color:var(--mu);margin-top:2px;">
+            ${l.data||""}  ·  ${qtd} peça${qtd!==1?"s":""}  ·  ${resp}
+          </div>
+        </div>
+        <div style="background:${st.cor}22;border:1px solid ${st.cor}55;border-radius:20px;
+          padding:4px 12px;display:flex;align-items:center;gap:5px;flex-shrink:0;">
+          <span style="font-size:13px;">${st.icon}</span>
+          <span style="font-size:11px;font-weight:700;color:${st.cor};">${st.label}</span>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div style="display:flex;align-items:flex-start;gap:0;margin-bottom:16px;overflow-x:auto;padding:4px 0;">
+        ${timeline}
+      </div>
+
+      <!-- Alerta taxa pendente -->
+      ${semTaxa?`<div style="background:var(--or)22;border:1px solid var(--or)55;border-radius:7px;
+        padding:10px 13px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;">⚠️</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--or);">Taxa de importação pendente</div>
+          <div style="font-size:10px;color:var(--mu);margin-top:2px;">Preencha o valor da taxa para calcular o custo real por peça</div>
+        </div>
+      </div>`:""}
+
+      <!-- Rastreio -->
+      <div class="g2" style="margin-bottom:12px;">
+        <div class="fld" style="margin-bottom:0;">
+          <label>Transportadora</label>
+          <input class="inp" value="${l.transportadora||''}" placeholder="Ex: Correios, Total Express..."
+            onchange="updateLoteField('${l.id}','transportadora',this.value)">
+        </div>
+        <div class="fld" style="margin-bottom:0;">
+          <label>Código de rastreio</label>
+          <input class="inp" value="${l.codigoRastreio||''}" placeholder="AA123456789BR"
+            onchange="updateLoteField('${l.id}','codigoRastreio',this.value)">
+        </div>
+      </div>
+
+      <!-- Taxa de importação -->
+      <div style="background:${l.taxa>0?"var(--gr)15":"var(--s2)"};
+        border:1px solid ${l.taxa>0?"var(--gr)44":"var(--br)"};
+        border-radius:7px;padding:12px 13px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:10px;font-weight:700;color:${l.taxa>0?"var(--gr)":"var(--mu)"};
+            letter-spacing:.07em;text-transform:uppercase;">
+            💰 Taxa de importação
+          </div>
+          ${l.taxa>0?`<div style="font-size:10px;color:var(--gr);">✓ ${qtd} peças · ${brl(l.taxa/qtd)}/peça</div>`:""}
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-end;">
+          <div style="flex:1;">
+            <div style="font-size:9px;color:var(--mu);font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;">
+              Valor total da taxa
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input id="taxa-input-${l.id}" class="inp" type="number" step="0.01"
+                value="${l.taxa||''}" placeholder="0,00"
+                style="font-size:16px;font-weight:700;color:var(--gold);font-family:'JetBrains Mono',monospace;">
+              <span style="font-size:13px;color:var(--mu);flex-shrink:0;">R$</span>
+            </div>
+          </div>
+          <button class="btn gold" onclick="salvarTaxa('${l.id}',${qtd})" style="flex-shrink:0;padding:9px 16px;">
+            Salvar
+          </button>
+        </div>
+        ${l.taxa>0?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--gr)33;">
+          <div style="font-size:10px;color:var(--mu);margin-bottom:5px;">Custo real por peça neste pacote:</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div style="background:var(--s3);border-radius:5px;padding:6px 10px;">
+              <div style="font-size:9px;color:var(--mu);">Jogador</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--gold);">
+                ${brl((getProd('jogador').custoUSD*cfg.cotacao)+(l.taxa/qtd))}
+              </div>
+            </div>
+            <div style="background:var(--s3);border-radius:5px;padding:6px 10px;">
+              <div style="font-size:9px;color:var(--mu);">Torcedor</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--bl);">
+                ${brl((getProd('torcedor').custoUSD*cfg.cotacao)+(l.taxa/qtd))}
+              </div>
+            </div>
+          </div>
+        </div>`:""}
+      </div>
+
+      <!-- Observações -->
+      <div class="fld" style="margin-bottom:10px;">
+        <label>Observações</label>
+        <input class="inp" value="${l.obsEnvio||''}" placeholder="Prazo, instruções especiais..."
+          onchange="updateLoteField('${l.id}','obsEnvio',this.value)">
+      </div>
+
+      <!-- Pedidos no pacote -->
+      ${ps.length?`<div style="border-top:1px solid var(--br);padding-top:10px;">
+        <div style="font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:7px;">
+          Pedidos neste pacote
+        </div>
+        ${ps.map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;border-bottom:1px solid var(--br);">
+          <div style="width:6px;height:6px;border-radius:50%;background:${getMod(p.modelo).cor};flex-shrink:0;"></div>
+          <span style="color:var(--iv);font-weight:600;flex:1;">${p.cliente}</span>
+          <span style="color:var(--mu);">${getMod(p.modelo).label} ${p.tamanho}</span>
+          ${p.qtd>1?`<span style="color:var(--gr);font-size:10px;font-weight:700;">×${p.qtd}</span>`:""}
+        </div>`).join("")}
+      </div>`:""}
+
+    </div>`;
+  }).join("");
+}
+
+function setEnvioStatus(loteId, status){
+  const i = lotes.findIndex(l=>l.id===loteId);
+  if(i<0) return;
+  lotes[i].envioStatus = status;
+  persist("ap6_lot", lotes);
+  renderTransp();
+  const st = TRANSP_STATUS.find(x=>x.id===status);
+  toast(`Pedido atualizado: ${st?.label||status} ${st?.icon||""}`, true);
+}
+
+function updateLoteField(loteId, field, value){
+  const i = lotes.findIndex(l=>l.id===loteId);
+  if(i<0) return;
+  lotes[i][field] = value;
+  persist("ap6_lot", lotes);
+}
+
+function salvarTaxa(loteId, qtd){
+  const input = document.getElementById("taxa-input-"+loteId);
+  if(!input) return;
+  const valor = parseFloat(input.value)||0;
+  if(!valor){ toast("Informe o valor da taxa",false); return; }
+  const i = lotes.findIndex(l=>l.id===loteId);
+  if(i<0) return;
+  lotes[i].taxa = valor;
+  // Avançar status para taxa_paga se estava em chegou_br
+  if(lotes[i].envioStatus==="chegou_br") lotes[i].envioStatus="taxa_paga";
+  persist("ap6_lot", lotes);
+  // Recalcular custo dos pedidos do pacote
+  pedidos = pedidos.map(p=>{
+    if(p.loteId!==loteId) return p;
+    const custo = calcCusto(p.prodId, loteId);
+    const venda = p.precoFinal||0;
+    return{...p, custo_total:custo, lucro:venda-custo, margem:venda>0?((venda-custo)/venda)*100:0};
+  });
+  persist("ap6_ped", pedidos);
+  toast("Taxa salva · "+brl(valor/Math.max(qtd,1))+"/peça ✓");
+  renderTransp();
+}
+
+
+// Sugestão de pacotes — dados armazenados em variável para evitar JSON no onclick
+let _sugestaoGrupos = [];
+let _sugestaoBaseNum = 0;
+
+function sugerirPacotes(){
+  const semPacote = pedidos.filter(p=>!p.loteId);
+  if(!semPacote.length){ toast("Todos os pedidos já estão em pacotes ✓"); return; }
+
+  _sugestaoBaseNum = lotes.reduce((max,l)=>{ const n=parseInt(l.num)||0; return n>max?n:max; }, 0);
+
+  const tamOrder = {"PP":0,"P":1,"M":2,"G":3,"GG":4,"XGG":5,"Único":6};
+  const ordenados = [...semPacote].sort((a,b)=>{
+    if(a.modelo!==b.modelo) return a.modelo.localeCompare(b.modelo);
+    return (tamOrder[a.tamanho]??9)-(tamOrder[b.tamanho]??9);
+  });
+
+  _sugestaoGrupos = [];
+  let grupoAtual = [], pecasAtual = 0;
+  ordenados.forEach(p=>{
+    const qtdP = p.qtd||1;
+    if(pecasAtual + qtdP <= 8){
+      grupoAtual.push(p); pecasAtual += qtdP;
+    } else if(qtdP > 8){
+      if(grupoAtual.length) _sugestaoGrupos.push({itens:grupoAtual, pecas:pecasAtual});
+      _sugestaoGrupos.push({itens:[p], pecas:qtdP});
+      grupoAtual=[]; pecasAtual=0;
+    } else {
+      if(grupoAtual.length) _sugestaoGrupos.push({itens:grupoAtual, pecas:pecasAtual});
+      grupoAtual=[p]; pecasAtual=qtdP;
+    }
+  });
+  if(grupoAtual.length) _sugestaoGrupos.push({itens:grupoAtual, pecas:pecasAtual});
+
+  const total = semPacote.reduce((a,p)=>a+(p.qtd||1),0);
+
+  let bodyHtml = `<div style="font-size:12px;color:var(--mu);margin-bottom:16px;">
+    <strong style="color:var(--iv);">${total} peças</strong> divididas em
+    <strong style="color:var(--gold);">${_sugestaoGrupos.length} pacote${_sugestaoGrupos.length>1?"s":""}</strong>
+    de até 8 peças cada.
+  </div>`;
+
+  _sugestaoGrupos.forEach((g,i)=>{
+    const num = String(_sugestaoBaseNum+i+1).padStart(3,"0");
+    const linhas = g.itens.map(p=>{
+      const mo = getMod(p.modelo).label;
+      const pr = getProd(p.prodId).label.replace("Camiseta ","");
+      return `<div style="font-size:11px;color:var(--mu);padding:2px 0;">· ${p.cliente} — ${mo} ${p.tamanho} (${pr})${p.qtd>1?" ×"+p.qtd:""}</div>`;
+    }).join("");
+    bodyHtml += `<div style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:14px;font-weight:700;color:var(--gold);">Pacote ${num}</div>
+        <div style="font-size:11px;color:var(--mu);">${g.pecas} peça${g.pecas>1?"s":""}</div>
+      </div>
+      ${linhas}
+      <div style="margin-top:10px;">
+        <button class="btn gold full" id="btn-sug-${i}" onclick="criarPacoteSugerido(${i})">
+          ✓ Criar pacote ${num}
+        </button>
+      </div>
+    </div>`;
+  });
+
+  bodyHtml += `<div style="margin-top:4px;">
+    <button class="btn gold full" onclick="criarTodosSugeridos()">
+      🚀 Criar todos os ${_sugestaoGrupos.length} pacotes de uma vez
+    </button>
+  </div>`;
+
+  openModal("✨ Sugestão de pacotes", bodyHtml);
+}
+
+function criarPacoteSugerido(idx){
+  const g = _sugestaoGrupos[idx];
+  if(!g){ toast("Grupo não encontrado",false); return; }
+  const numInt = _sugestaoBaseNum + idx + 1;
+  const num = String(numInt).padStart(3,"0");
+  const loteId = uid();
+  lotes.push({ id:loteId, num, data:hoje(), desc:"", responsavelId:null, totalPecas:0, taxa:0 });
+  let pecas = 0;
+  const ids = g.itens.map(p=>p.id);
+  pedidos = pedidos.map(p=>{
+    if(!ids.includes(p.id)) return p;
+    pecas += p.qtd||1;
+    const custo = calcCusto(p.prodId, loteId);
+    const venda = p.precoFinal||0;
+    return{...p, loteId, custo_total:custo, lucro:venda-custo, margem:venda>0?((venda-custo)/venda)*100:0};
+  });
+  lotes[lotes.length-1].totalPecas = pecas;
+  persist("ap6_lot", lotes);
+  persist("ap6_ped", pedidos);
+  updHdr();
+  // Marcar botão como criado
+  const btn = document.getElementById("btn-sug-"+idx);
+  if(btn){ btn.textContent="✓ Criado"; btn.disabled=true; btn.style.opacity=".5"; }
+  toast("Pacote "+num+" criado ✓");
+}
+
+function criarTodosSugeridos(){
+  _sugestaoGrupos.forEach((_,i)=> criarPacoteSugerido(i));
+  setTimeout(()=>{ closeModal(); goTab("lotes"); }, 300);
+  toast("Todos os pacotes criados ✓");
+}
+
+// ═══════════════════
+// INIT
+// ═══════════════════
+async function init(){
+  await loadAll();
+  updHdr();fillModFilter();renderPedidos();
+}
+init();
+</script>
+</body>
+</html>
