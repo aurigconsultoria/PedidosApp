@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ápice Sports</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -453,44 +454,139 @@ let usuarios=[
 let curTab="ped", editPedId=null, editLoteId=null, curCxId=null, chartRef=null;
 
 // ═══════════════════
-// STORAGE
+// SUPABASE
 // ═══════════════════
-function persist(k,v){
-  // fire-and-forget — never blocks the UI
-  try{ window.storage.set(k,JSON.stringify(v)).catch(()=>{}); }catch(e){}
-}
-async function loadAll(){
-  // Version check — bump to force reload of demo data
-  const VER = "v8-abril2026";
-  try{
-    const vr = await window.storage.get("ap6_ver");
-    if(!vr || vr.value !== VER){
-      // Clear old data, load fresh demo
-      for(const k of ["ap6_ped","ap6_lot","ap6_pag","ap6_mod","ap6_prd","ap6_cfg"]){
-        try{ await window.storage.delete(k); }catch(e){}
-      }
-      await window.storage.set("ap6_ver", VER);
-      return; // will use DEMO data below
-    }
-  }catch(e){}
-  try{
-    const r1=await window.storage.get("ap6_ped");  if(r1){const v=JSON.parse(r1.value);if(v?.length)pedidos=v;}
-    const r2=await window.storage.get("ap6_lot");  if(r2){const v=JSON.parse(r2.value);if(v?.length)lotes=v;}
-    const r3=await window.storage.get("ap6_pag");  if(r3){const v=JSON.parse(r3.value);if(v?.length)pags=v;}
-    const r4=await window.storage.get("ap6_mod");  if(r4){const v=JSON.parse(r4.value);if(v?.length)modelos=v;}
-    const r5=await window.storage.get("ap6_prd");  if(r5){const v=JSON.parse(r5.value);if(v?.length)produtos=v;}
-    const r6=await window.storage.get("ap6_cfg");  if(r6){const v=JSON.parse(r6.value);if(v)cfg=v;}
-  }catch(e){}
-  try{
-    const ru=await window.storage.get("ap6_usr"); if(ru){const v=JSON.parse(ru.value);if(v?.length)usuarios=v;}
-  }catch(e){}
-  if(!pedidos.length)  pedidos  = DEMO_P.map(x=>({...x}));
-  if(!pedidos.length)    pedidos    = DEMO_L.map(x=>({...x}));
-  if(!pags.length)     pags     = DEMO_PAG.map(x=>({...x,parcelas:x.parcelas.map(p=>({...p}))}));
-  if(!modelos.length)  modelos  = DEMO_MOD.map(x=>({...x}));
-  if(!produtos.length) produtos = DEMO_PROD.map(x=>({...x}));
+const _sb = supabase.createClient("https://vmofhssqqwihjofmpocd.supabase.co", "sb_publishable_nfT8ElJkDVeBr4qHZvDUQw_dwaeJt2l");
+
+// persist: salva no Supabase de forma assíncrona (fire-and-forget)
+function persist(k, v){
+  // k = chave antiga (ap6_ped, ap6_lot, etc) — mapeamos para tabelas
+  _syncToSupabase(k, v).catch(e=>console.warn("persist error:", e));
 }
 
+async function _syncToSupabase(k, v){
+  if(k==="ap6_ped")      await _upsertMany("pedidos",    v, pedidoToRow);
+  else if(k==="ap6_lot") await _upsertMany("pacotes",    v, pacoteToRow);
+  else if(k==="ap6_pag") await _upsertMany("pagamentos", v, pagamentoToRow);
+  else if(k==="ap6_mod") await _upsertMany("modelos",    v, modeloToRow);
+  else if(k==="ap6_prd") await _upsertMany("produtos",   v, produtoToRow);
+  else if(k==="ap6_usr") await _upsertMany("usuarios",   v, usuarioToRow);
+  else if(k==="ap6_cfg") {
+    await _sb.from("config").upsert({id:"main", cotacao:v.cotacao});
+  }
+}
+
+async function _upsertMany(tabela, arr, mapFn){
+  if(!arr || !arr.length) return;
+  const rows = arr.map(mapFn);
+  const {error} = await _sb.from(tabela).upsert(rows, {onConflict:"id"});
+  if(error) console.warn("upsert error:", tabela, error.message);
+}
+
+// Mappers: JS object → linha do banco
+function pedidoToRow(p){
+  return {
+    id:p.id, created_at:p.createdAt||new Date().toISOString(),
+    cliente:p.cliente, modelo:p.modelo, prod_id:p.prodId,
+    genero:p.genero||"Masculino", tamanho:p.tamanho||"M",
+    qtd:p.qtd||1, data_pedido:p.dataPedido||null,
+    personalizacao:!!p.personalizacao, nome_perso:p.nomePerso||"",
+    numero:p.numero||"", obs:p.obs||"",
+    lote_id:p.loteId||null,
+    preco_final:p.precoFinal||0, custo_total:p.custo_total||0,
+    lucro:p.lucro||0, margem:p.margem||0
+  };
+}
+function pacoteToRow(l){
+  return {
+    id:l.id, num:l.num, data:l.data||null, descricao:l.desc||"",
+    responsavel_id:l.responsavelId||null, total_pecas:l.totalPecas||0,
+    taxa:l.taxa||0, envio_status:l.envioStatus||"aguardando",
+    transportadora:l.transportadora||"", codigo_rastreio:l.codigoRastreio||"",
+    obs_envio:l.obsEnvio||""
+  };
+}
+function pagamentoToRow(pg){
+  return {
+    id:pg.id, pedido_id:pg.pedidoId,
+    entregue:!!pg.entregue, parcelas:pg.parcelas||[]
+  };
+}
+function modeloToRow(m){
+  return {id:m.id, label:m.label, cor:m.cor||"#C9A84C", ativo:m.ativo!==false};
+}
+function produtoToRow(pr){
+  return {id:pr.id, label:pr.label, custo_usd:pr.custoUSD||0, venda_brl:pr.vendaBRL||0};
+}
+function usuarioToRow(u){
+  return {id:u.id, nome:u.nome||"", cargo:u.cargo||"", contato:u.contato||""};
+}
+
+// Mappers: linha do banco → JS object
+function rowToPedido(r){
+  return {
+    id:r.id, createdAt:r.created_at, cliente:r.cliente, modelo:r.modelo,
+    prodId:r.prod_id, genero:r.genero, tamanho:r.tamanho, qtd:r.qtd,
+    dataPedido:r.data_pedido, personalizacao:r.personalizacao,
+    nomePerso:r.nome_perso, numero:r.numero, obs:r.obs, loteId:r.lote_id,
+    precoFinal:parseFloat(r.preco_final), custo_total:parseFloat(r.custo_total),
+    lucro:parseFloat(r.lucro), margem:parseFloat(r.margem)
+  };
+}
+function rowToPacote(r){
+  return {
+    id:r.id, num:r.num, data:r.data, desc:r.descricao,
+    responsavelId:r.responsavel_id, totalPecas:r.total_pecas,
+    taxa:parseFloat(r.taxa||0), envioStatus:r.envio_status,
+    transportadora:r.transportadora, codigoRastreio:r.codigo_rastreio,
+    obsEnvio:r.obs_envio
+  };
+}
+function rowToPagamento(r){
+  return {
+    id:r.id, pedidoId:r.pedido_id, entregue:r.entregue,
+    parcelas:r.parcelas||[]
+  };
+}
+function rowToModelo(r){
+  return {id:r.id, label:r.label, cor:r.cor, ativo:r.ativo};
+}
+function rowToProduto(r){
+  return {id:r.id, label:r.label, custoUSD:parseFloat(r.custo_usd), vendaBRL:parseFloat(r.venda_brl)};
+}
+function rowToUsuario(r){
+  return {id:r.id, nome:r.nome, cargo:r.cargo, contato:r.contato};
+}
+async function loadAll(){
+  try{
+    const [r1,r2,r3,r4,r5,r6,r7] = await Promise.all([
+      _sb.from("pedidos").select("*"),
+      _sb.from("pacotes").select("*"),
+      _sb.from("pagamentos").select("*"),
+      _sb.from("modelos").select("*"),
+      _sb.from("produtos").select("*"),
+      _sb.from("config").select("*").eq("id","main").single(),
+      _sb.from("usuarios").select("*"),
+    ]);
+    if(r1.data?.length) pedidos  = r1.data.map(rowToPedido);
+    if(r2.data?.length) lotes    = r2.data.map(rowToPacote);
+    if(r3.data?.length) pags     = r3.data.map(rowToPagamento);
+    if(r4.data?.length) modelos  = r4.data.map(rowToModelo);
+    if(r5.data?.length) produtos = r5.data.map(rowToProduto);
+    if(r6.data)         cfg      = {cotacao: parseFloat(r6.data.cotacao||6.2)};
+    if(r7.data?.length) usuarios = r7.data.map(rowToUsuario);
+  }catch(e){
+    console.warn("Supabase load error:", e);
+  }
+  // Se banco vazio, carregar demo e já sincronizar
+  if(!pedidos.length)  { pedidos  = DEMO_P.map(x=>({...x}));   persist("ap6_ped", pedidos); }
+  if(!lotes.length)    { lotes    = DEMO_L.map(x=>({...x}));   persist("ap6_lot", lotes); }
+  if(!pags.length)     { pags     = DEMO_PAG.map(x=>({...x,parcelas:x.parcelas.map(p=>({...p}))})); persist("ap6_pag", pags); }
+  if(!modelos.length)  { modelos  = DEMO_MOD.map(x=>({...x})); persist("ap6_mod", modelos); }
+  if(!produtos.length) { produtos = DEMO_PROD.map(x=>({...x})); persist("ap6_prd", produtos); }
+  if(!usuarios.length) { persist("ap6_usr", usuarios); }
+  persist("ap6_cfg", cfg);
+}
 // ═══════════════════
 // UTILS
 // ═══════════════════
