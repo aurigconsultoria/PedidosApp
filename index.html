@@ -978,7 +978,9 @@ function delPed(id){
   showConfirm("Remover este pedido?","Remover",ok=>{
     if(!ok)return;
     pedidos=pedidos.filter(p=>p.id!==id);pags=pags.filter(x=>x.pedidoId!==id);
-    persist("ap6_ped",pedidos);persist("ap6_pag",pags);
+    // Deletar do Supabase
+    _sb.from("pedidos").delete().eq("id",id).then(()=>{});
+    _sb.from("pagamentos").delete().eq("pedido_id",id).then(()=>{});
     updHdr();renderPedidos();toast("Pedido removido",false);
   });
 }
@@ -986,7 +988,11 @@ function delGrupo(ids){
   showConfirm("Remover todos os pedidos deste cliente?","Remover todos",ok=>{
     if(!ok)return;
     pedidos=pedidos.filter(p=>!ids.includes(p.id));pags=pags.filter(x=>!ids.includes(x.pedidoId));
-    persist("ap6_ped",pedidos);persist("ap6_pag",pags);
+    // Deletar do Supabase
+    ids.forEach(id=>{
+      _sb.from("pedidos").delete().eq("id",id).then(()=>{});
+      _sb.from("pagamentos").delete().eq("pedido_id",id).then(()=>{});
+    });
     updHdr();renderPedidos();toast("Pedidos removidos",false);
   });
 }
@@ -1314,6 +1320,8 @@ function delLote(id){
       return{...p,loteId:null,custo_total:custo,lucro:venda-custo,margem:venda>0?((venda-custo)/venda)*100:0};
     });
     persist("ap6_lot",lotes);persist("ap6_ped",pedidos);
+    // Deletar do Supabase
+    _sb.from("pacotes").delete().eq("id",id).then(()=>{});
     renderLotes();toast("Pacote removido",false);
   });
 }
@@ -1693,7 +1701,7 @@ function renderModList(){
 }
 function addModelo(){const l=document.getElementById("cfgModLabel").value.trim();if(!l)return;const c=document.getElementById("cfgModCor").value;modelos.push({id:l.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,""),label:l,cor:c,ativo:true});document.getElementById("cfgModLabel").value="";persist("ap6_mod",modelos);renderModList();fillModFilter();toast("Modelo adicionado ✓");}
 function togMod(id){modelos=modelos.map(m=>m.id===id?{...m,ativo:!m.ativo}:m);persist("ap6_mod",modelos);renderModList();fillModFilter();}
-function delMod(id){showConfirm("Remover este modelo?","Remover",ok=>{if(!ok)return;modelos=modelos.filter(m=>m.id!==id);persist("ap6_mod",modelos);renderModList();fillModFilter();});}
+function delMod(id){showConfirm("Remover este modelo?","Remover",ok=>{if(!ok)return;modelos=modelos.filter(m=>m.id!==id);persist("ap6_mod",modelos);_sb.from("modelos").delete().eq("id",id).then(()=>{});renderModList();fillModFilter();});}
 function editMod(id){const m=modelos.find(x=>x.id===id);if(!m)return;const n=prompt("Novo nome:",m.label);if(!n?.trim())return;modelos=modelos.map(x=>x.id===id?{...x,label:n.trim()}:x);persist("ap6_mod",modelos);renderModList();fillModFilter();}
 function setMCor(id,cor){modelos=modelos.map(m=>m.id===id?{...m,cor}:m);persist("ap6_mod",modelos);renderModList();}
 
