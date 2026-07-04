@@ -699,7 +699,7 @@ const DEMO_PROD = [
 // ═══════════════════
 // STATE
 // ═══════════════════
-let pedidos=[], lotes=[], pags=[], modelos=[], produtos=[], estoque=[], cfg={cotacao:6.2};
+let pedidos=[], lotes=[], pags=[], modelos=[], produtos=[], estoque=[], aportes=[], cfg={cotacao:6.2};
 let usuarios=[
   {id:"u1", nome:"Lucas",  contato:"", cargo:"Sócio", usuario:"Guirau",  senhaHash:"28119fef017d1ef97b290909efb02f43836d90d6373b51ba1cd5bf041e1a9d4d"},
   {id:"u2", nome:"Thiago", contato:"", cargo:"Sócio", usuario:"Tannuri", senhaHash:"b4d40da1fd8404b94d7419d82dbc5412c080441290ddec42a4f7916079e7ad1d"},
@@ -728,6 +728,7 @@ async function _syncToSupabase(k, v){
   else if(k==="ap6_prd") await _upsertMany("produtos",   v, produtoToRow);
   else if(k==="ap6_usr") await _upsertMany("usuarios",   v, usuarioToRow);
   else if(k==="ap6_estq") await _upsertMany("estoque",   v, estoqueToRow);
+  else if(k==="ap6_apt") await _upsertMany("aportes",   v, aporteToRow);
   else if(k==="ap6_cfg") {
     await _sb.from("config").upsert({id:"main", cotacao:v.cotacao});
   }
@@ -783,6 +784,9 @@ function usuarioToRow(u){
 function estoqueToRow(e){
   return {id:e.id, modelo_id:e.modeloId, tamanho:e.tamanho||"M", genero:e.genero||"Masculino", qtd:e.qtd||0};
 }
+function aporteToRow(a){
+  return {id:a.id, pacote_id:a.loteId, usuario_id:a.usuarioId, valor:a.valor||0, obs:a.obs||""};
+}
 
 // Mappers: linha do banco → JS object
 function rowToPedido(r){
@@ -823,6 +827,9 @@ function rowToUsuario(r){
 function rowToEstoque(r){
   return {id:r.id, modeloId:r.modelo_id, tamanho:r.tamanho, genero:r.genero, qtd:r.qtd};
 }
+function rowToAporte(r){
+  return {id:r.id, loteId:r.pacote_id, usuarioId:r.usuario_id, valor:parseFloat(r.valor)||0, obs:r.obs||""};
+}
 let _loadError = false;
 async function loadAll(){
   _loadError = false;
@@ -835,7 +842,7 @@ async function loadAll(){
     return;
   }
   try{
-    const [r1,r2,r3,r4,r5,r6,r7,r8] = await Promise.all([
+    const [r1,r2,r3,r4,r5,r6,r7,r8,r9] = await Promise.all([
       _sb.from("pedidos").select("*"),
       _sb.from("pacotes").select("*"),
       _sb.from("pagamentos").select("*"),
@@ -844,8 +851,9 @@ async function loadAll(){
       _sb.from("config").select("*").eq("id","main").single(),
       _sb.from("usuarios").select("*"),
       _sb.from("estoque").select("*"),
+      _sb.from("aportes").select("*"),
     ]);
-    const respostas = {pedidos:r1, pacotes:r2, pagamentos:r3, modelos:r4, produtos:r5, config:r6, usuarios:r7, estoque:r8};
+    const respostas = {pedidos:r1, pacotes:r2, pagamentos:r3, modelos:r4, produtos:r5, config:r6, usuarios:r7, estoque:r8, aportes:r9};
     const falhas = Object.entries(respostas).filter(([,r])=>r.error).map(([k])=>k);
     if(falhas.length){
       _loadError = true;
@@ -862,6 +870,7 @@ async function loadAll(){
     if(!r6.error && r6.data) cfg = {cotacao: parseFloat(r6.data.cotacao||6.2)};
     if(!r7.error) usuarios = (r7.data||[]).map(rowToUsuario);
     if(!r8.error) estoque  = (r8.data||[]).map(rowToEstoque);
+    if(!r9.error) aportes  = (r9.data||[]).map(rowToAporte);
   }catch(e){
     _loadError = true;
     console.warn("Supabase load error:", e);
@@ -1674,11 +1683,15 @@ function resumoLote(id){
 // CAIXA
 // ═══════════════════
 function renderCaixa(){
-  const totFat=pedidos.reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0);
-  const recP=pags.reduce((a,pg)=>a+(pg.parcelas||[]).filter(x=>x.recebido).reduce((b,x)=>b+(x.valor||0),0),0);
-  const ent=pags.filter(x=>x.status==="entregue"||x.status==="recebido").length;
+  // Faturamento/Recebido/A receber refletem só VENDAS reais — consumo próprio (preço de
+  // custo, abatido do sócio) e estoque (ainda não vendido) não são movimentação de caixa
+  // de cliente, por isso ficam de fora daqui (aparecem na aba Investimento e no Estoque).
+  const vendasCx = pedidos.filter(p=>(p.tipoPedido||"venda")==="venda");
+  const totFat=vendasCx.reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0);
+  const recP=vendasCx.reduce((a,p)=>{const pg=getPag(p.id);return a+((pg?.parcelas||[]).filter(x=>x.recebido).reduce((b,x)=>b+(x.valor||0),0));},0);
+  const ent=pags.filter(x=>x.entregue===true).length;
   document.getElementById("cxKpis").innerHTML=[
-    {l:"Faturamento total",v:brl(totFat),c:"var(--gold)"},
+    {l:"Faturamento (vendas)",v:brl(totFat),c:"var(--gold)",s:"consumo próprio e estoque não entram"},
     {l:"Recebido",v:brl(recP),c:"var(--gr)"},
     {l:"A receber",v:brl(totFat-recP),c:"var(--or)"},
     {l:"Entregues",v:ent,c:"var(--iv)",s:"pedidos"},
@@ -1729,7 +1742,7 @@ function renderCaixa(){
     const opacityRow = finalizado ? "0.5" : "1";
     return`<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 11px;background:var(--s1);border:1px solid var(--br);border-left:3px solid ${borderAccent};border-radius:7px;margin-bottom:5px;flex-wrap:wrap;opacity:${opacityRow};transition:opacity .15s;">
       <div style="flex:1;min-width:100px;">
-        <div style="font-weight:600;font-size:12px;">${p.cliente}${finalizado?` <span style="color:var(--gr);font-size:10px;font-weight:700;">· ✓ Concluído</span>`:""}</div>
+        <div style="font-weight:600;font-size:12px;">${p.cliente}${finalizado?` <span style="color:var(--gr);font-size:10px;font-weight:700;">· ✓ Concluído</span>`:""}${p.tipoPedido==="consumo"?` <span style="color:var(--pu);font-size:9px;font-weight:700;">· Consumo próprio</span>`:p.tipoPedido==="estoque"?` <span style="color:var(--mu);font-size:9px;font-weight:700;">· Estoque</span>`:""}</div>
         <div style="font-size:10px;color:var(--mu);margin-top:2px;">${getMod(p.modelo).label} · ${getProd(p.prodId).label} ${p.tamanho}</div>
         ${parcelaInfo}
       </div>
@@ -1786,6 +1799,16 @@ function openCxDet(pedId){
         ${lot?`<span style="font-size:10px;color:var(--mu);background:var(--s3);border-radius:4px;padding:2px 8px;">📦 Pacote ${lot.num}</span>`:""}
       </div>
       ${p.obs?`<div style="font-size:10px;color:var(--mu);margin-top:6px;">💬 ${p.obs}</div>`:""}
+    </div>
+
+    <!-- Desconto (aplicado no acerto do pagamento) -->
+    <div class="fld" style="margin-bottom:14px;">
+      <label>Desconto neste pedido (R$)</label>
+      <div class="iu">
+        <input class="inp" type="number" step="0.01" min="0" id="cx-desconto" value="${p.desconto||0}" onchange="aplicarDescontoCx('${pedId}',this.value)">
+        <span>R$</span>
+      </div>
+      <div style="font-size:9.5px;color:var(--mu);margin-top:5px;">Ajusta o valor total do pedido na hora de fechar a conta com o cliente.</div>
     </div>
 
     <!-- Entrega -->
@@ -1861,6 +1884,20 @@ function setEntrega(pedId, entregue){
   if(i>=0){ pags[i].entregue=entregue; persist("ap6_pag",pags); }
   openCxDet(pedId);
   toast(entregue?"✅ Marcado como entregue":"⏳ Aguardando entrega");
+}
+function aplicarDescontoCx(pedId, valor){
+  const p=pedidos.find(x=>x.id===pedId); if(!p) return;
+  const descontoVal=Math.max(0,parseFloat(valor)||0);
+  const vendaBase=getProd(p.prodId).vendaBRL||0;
+  const qtd=p.qtd||1;
+  const novoPrecoUnit=Math.max(0,(vendaBase*qtd-descontoVal))/qtd;
+  p.desconto=descontoVal;
+  p.precoFinal=novoPrecoUnit;
+  p.lucro=novoPrecoUnit-(p.custo_total||0);
+  p.margem=novoPrecoUnit>0?(p.lucro/novoPrecoUnit)*100:0;
+  persist("ap6_ped",pedidos);
+  toast("Desconto aplicado · novo total "+brl(novoPrecoUnit*qtd));
+  openCxDet(pedId);
 }
 function setSt(pedId,status){
   const i=pags.findIndex(x=>x.pedidoId===pedId);if(i>=0){pags[i].status=status;persist("ap6_pag",pags);}
@@ -1940,9 +1977,14 @@ function renderDash(){
   var ticket     =nPed?faturamento/nPed:0;
   var margem     =faturamento>0?(lucroGeral/faturamento*100):0;
 
-  var investMerc =S(pedidos,function(p){return custoMerc(p)*qtd(p);});
-  var taxasTot   =(lotes||[]).reduce(function(a,l){return a+(l.taxa||0);},0);
-  var aporteTot  =investMerc+taxasTot;
+  var socU=(usuarios||[]).filter(function(u){return /s[oó]cio/i.test(u.cargo||"");});
+  var uL=socU.filter(function(u){return /lucas/i.test(u.nome);})[0]||socU[0]||{nome:"Sócio 1"};
+  var uT=socU.filter(function(u){return /thiago/i.test(u.nome);})[0]||socU[1]||{nome:"Sócio 2"};
+  var nL=uL.nome, nT=uT.nome;
+  var aportePorSocio=function(usuarioId){return S((aportes||[]).filter(function(a){return a.usuarioId===usuarioId;}),function(a){return a.valor||0;});};
+  var aporteL    =aportePorSocio(uL.id);
+  var aporteT    =aportePorSocio(uT.id);
+  var aporteTot  =aporteL+aporteT;
   var capEstoque =S(estoque,function(p){return custoMerc(p)*qtd(p);});
   var pecasConsumo=S(consumo,qtd), pecasEstoque=S(estoque,qtd);
   var consumoCusto=function(nome){return S(consumo.filter(function(p){return (p.cliente||"").trim().toLowerCase()===nome;}),function(p){return custoMerc(p)*qtd(p);});};
@@ -1979,29 +2021,25 @@ function renderDash(){
   }
 
   // ═══ Sócios & Capital ═══
-  var socU=(usuarios||[]).filter(function(u){return /s[oó]cio/i.test(u.cargo||"");});
-  var uL=socU.filter(function(u){return /lucas/i.test(u.nome);})[0]||socU[0]||{nome:"Sócio 1"};
-  var uT=socU.filter(function(u){return /thiago/i.test(u.nome);})[0]||socU[1]||{nome:"Sócio 2"};
-  var nL=uL.nome, nT=uT.nome;
   var consL=consumoCusto(nL.trim().toLowerCase()), consT=consumoCusto(nT.trim().toLowerCase());
   var lucroSoc=lucroGeral/2;
-  var resL=investMerc+lucroSoc-consL;
-  var resT=taxasTot +lucroSoc-consT;
+  var resL=aporteL+lucroSoc-consL;
+  var resT=aporteT+lucroSoc-consT;
   $("dzSocios").innerHTML=
-    '<div class="dz-card" style="margin-bottom:12px;"><div class="dz-ct"><span>Capital investido &amp; taxas</span><span class="tag">a recuperar</span></div>'+
-      '<div class="dz-row"><span class="rl">Investido em mercadoria <small>capital · '+nL+'</small></span><span class="rv amb">'+brl(investMerc)+'</span></div>'+
-      '<div class="dz-row"><span class="rl">Taxas de importação <small>'+nT+'</small></span><span class="rv amb">'+brl(taxasTot)+'</span></div>'+
+    '<div class="dz-card" style="margin-bottom:12px;"><div class="dz-ct"><span>Capital investido (aportes)</span><span class="tag">a recuperar</span></div>'+
+      '<div class="dz-row"><span class="rl">Aportado por <small>'+nL+'</small></span><span class="rv amb">'+brl(aporteL)+'</span></div>'+
+      '<div class="dz-row"><span class="rl">Aportado por <small>'+nT+'</small></span><span class="rv amb">'+brl(aporteT)+'</span></div>'+
       '<div class="dz-row"><span class="rl">Aporte total</span><span class="rv">'+brl(aporteTot)+'</span></div>'+
       '<div class="dz-row"><span class="rl">Capital parado em estoque <small>não vendido</small></span><span class="rv blu">'+brl(capEstoque)+'</span></div>'+
     '</div>'+
     '<div class="dz-grid2" style="margin-bottom:12px;">'+
       '<div class="dz-socio"><h4>🔴 '+nL+'</h4><div class="big">'+brl(resL)+'</div>'+
-        '<div class="dz-row"><span class="rl">Aporte a devolver</span><span class="rv">'+brl(investMerc)+'</span></div>'+
+        '<div class="dz-row"><span class="rl">Aporte a devolver</span><span class="rv">'+brl(aporteL)+'</span></div>'+
         '<div class="dz-row"><span class="rl">+ Metade do lucro</span><span class="rv pos">'+brl(lucroSoc)+'</span></div>'+
         (consL>0?'<div class="dz-row"><span class="rl">− Consumo próprio</span><span class="rv neg">'+brl(consL)+'</span></div>':'')+
       '</div>'+
       '<div class="dz-socio"><h4>🟡 '+nT+'</h4><div class="big">'+brl(resT)+'</div>'+
-        '<div class="dz-row"><span class="rl">Aporte a devolver</span><span class="rv">'+brl(taxasTot)+'</span></div>'+
+        '<div class="dz-row"><span class="rl">Aporte a devolver</span><span class="rv">'+brl(aporteT)+'</span></div>'+
         '<div class="dz-row"><span class="rl">+ Metade do lucro</span><span class="rv pos">'+brl(lucroSoc)+'</span></div>'+
         (consT>0?'<div class="dz-row"><span class="rl">− Consumo próprio</span><span class="rv neg">'+brl(consT)+'</span></div>':'')+
       '</div>'+
@@ -2009,7 +2047,7 @@ function renderDash(){
     '<div class="dz-card"><div class="dz-ct">Lucro</div>'+
       '<div class="dz-row"><span class="rl">Lucro geral (vendas)</span><span class="rv '+(lucroGeral>=0?'pos':'neg')+'">'+brl(lucroGeral)+'</span></div>'+
       '<div class="dz-row"><span class="rl">Lucro por sócio (50/50)</span><span class="rv pos">'+brl(lucroSoc)+'</span></div>'+
-      '<div class="dz-note">Cada sócio recebe primeiro o <b>aporte de volta</b> (mercadoria p/ '+nL+', taxas p/ '+nT+') e só o <b>lucro que sobra é dividido 50/50</b>. Consumo próprio é abatido a preço de custo. Estoque não entra no faturamento até vender.</div>'+
+      '<div class="dz-note">Cada sócio recebe primeiro o <b>aporte de volta</b> (conforme lançado em cada pacote — veja Transporte) e só o <b>lucro que sobra é dividido 50/50</b>. Consumo próprio é abatido a preço de custo. Estoque não entra no faturamento até vender.</div>'+
     '</div>';
 
   // ═══ Investimento &amp; taxas por pacote ═══
@@ -2024,7 +2062,7 @@ function renderDash(){
   var htmlP='<div class="dz-ct"><span>Investimento &amp; taxas por pacote</span><span class="tag">'+pacs.length+' pacotes</span></div>';
   if(pacs.length){
     htmlP+=pacs.map(function(l){return '<div class="dz-row"><span class="rl">Pacote '+(l.num||"?")+' <small>'+l.pec+' peças'+(l.tpp>0?' · '+brl(l.tpp)+'/peça':'')+'</small></span><span class="rv"><span class="amb">'+brl(l.taxa)+'</span>'+(l.invest>0?' <small style="color:var(--mu);font-weight:400;">merc. '+brl(l.invest)+'</small>':'')+'</span></div>';}).join("");
-    htmlP+='<div class="dz-row" style="border-top:1px solid var(--br);margin-top:4px;padding-top:10px;"><span class="rl"><b>Total de taxas</b></span><span class="rv amb">'+brl(taxasTot)+'</span></div>';
+    htmlP+='<div class="dz-row" style="border-top:1px solid var(--br);margin-top:4px;padding-top:10px;"><span class="rl"><b>Total de taxas</b></span><span class="rv amb">'+brl(S(pacs,function(l){return l.taxa||0;}))+'</span></div>';
   } else { htmlP+='<div style="color:var(--mu);font-size:11px;">Nenhum pacote registrado ainda.</div>'; }
   $("dzPacotes").innerHTML=htmlP;
 
@@ -2089,42 +2127,43 @@ function renderInvest(){
   var custoVend  =S(vendas,function(p){return (p.custo_total||0)*qtd(p);});
   var lucroGeral =faturamento-custoVend;
 
-  var investMerc =S(pedidos,function(p){return custoMerc(p)*qtd(p);});
-  var taxasTot   =(lotes||[]).reduce(function(a,l){return a+(l.taxa||0);},0);
-  var aporteTot  =investMerc+taxasTot;
-  var capEstoque =S(estoqueP,function(p){return custoMerc(p)*qtd(p);});
-
   var socU=(usuarios||[]).filter(function(u){return /s[oó]cio/i.test(u.cargo||"");});
   var uL=socU.filter(function(u){return /lucas/i.test(u.nome);})[0]||socU[0]||{nome:"Sócio 1"};
   var uT=socU.filter(function(u){return /thiago/i.test(u.nome);})[0]||socU[1]||{nome:"Sócio 2"};
   var nL=uL.nome, nT=uT.nome;
+  var aportePorSocio=function(usuarioId){return S((aportes||[]).filter(function(a){return a.usuarioId===usuarioId;}),function(a){return a.valor||0;});};
+  var aporteL    =aportePorSocio(uL.id);
+  var aporteT    =aportePorSocio(uT.id);
+  var aporteTot  =aporteL+aporteT;
+  var capEstoque =S(estoqueP,function(p){return custoMerc(p)*qtd(p);});
+
   var consumoCusto=function(nome){return S(consumo.filter(function(p){return (p.cliente||"").trim().toLowerCase().indexOf(nome)>=0;}),function(p){return custoMerc(p)*qtd(p);});};
   var consL=consumoCusto(nL.trim().toLowerCase()), consT=consumoCusto(nT.trim().toLowerCase());
 
   var lucroSoc=lucroGeral/2;
-  var resL=investMerc+lucroSoc-consL;
-  var resT=taxasTot +lucroSoc-consT;
+  var resL=aporteL+lucroSoc-consL;
+  var resT=aporteT+lucroSoc-consT;
 
   $("ivKpis").innerHTML=
-    '<div class="dz-kpi g-gold"><div class="kl">Aporte total</div><div class="kv">'+brl(aporteTot)+'</div><div class="ks">mercadoria + taxas de importação</div></div>'+
+    '<div class="dz-kpi g-gold"><div class="kl">Aporte total</div><div class="kv">'+brl(aporteTot)+'</div><div class="ks">lançado nos pacotes (veja Transporte)</div></div>'+
     '<div class="dz-kpi g-red"><div class="kl">Lucro geral</div><div class="kv">'+brl(lucroGeral)+'</div><div class="ks">'+vendas.length+' venda'+(vendas.length!==1?"s":"")+'</div></div>';
 
   $("ivSocios").innerHTML=
     '<div class="dz-grid2" style="margin-bottom:12px;">'+
       '<div class="dz-socio"><h4>🔴 '+nL+'</h4><div class="big">'+brl(resL)+'</div><div style="font-size:9px;color:var(--mu);margin-top:2px;margin-bottom:8px;">disponível pra saque</div>'+
-        '<div class="dz-row"><span class="rl">Aporte a devolver <small>mercadoria</small></span><span class="rv">'+brl(investMerc)+'</span></div>'+
+        '<div class="dz-row"><span class="rl">Aporte a devolver</span><span class="rv">'+brl(aporteL)+'</span></div>'+
         '<div class="dz-row"><span class="rl">+ Metade do lucro</span><span class="rv pos">'+brl(lucroSoc)+'</span></div>'+
         (consL>0?'<div class="dz-row"><span class="rl">− Peças retiradas p/ uso próprio</span><span class="rv neg">'+brl(consL)+'</span></div>':'')+
       '</div>'+
       '<div class="dz-socio"><h4>🟡 '+nT+'</h4><div class="big">'+brl(resT)+'</div><div style="font-size:9px;color:var(--mu);margin-top:2px;margin-bottom:8px;">disponível pra saque</div>'+
-        '<div class="dz-row"><span class="rl">Aporte a devolver <small>taxas de importação</small></span><span class="rv">'+brl(taxasTot)+'</span></div>'+
+        '<div class="dz-row"><span class="rl">Aporte a devolver</span><span class="rv">'+brl(aporteT)+'</span></div>'+
         '<div class="dz-row"><span class="rl">+ Metade do lucro</span><span class="rv pos">'+brl(lucroSoc)+'</span></div>'+
         (consT>0?'<div class="dz-row"><span class="rl">− Peças retiradas p/ uso próprio</span><span class="rv neg">'+brl(consT)+'</span></div>':'')+
       '</div>'+
     '</div>'+
     '<div class="dz-card"><div class="dz-ct"><span>Capital parado em estoque</span><span class="tag">não vendido</span></div>'+
       '<div class="dz-row"><span class="rl">Custo das peças em estoque</span><span class="rv blu">'+brl(capEstoque)+'</span></div>'+
-      '<div class="dz-note">Cada sócio recebe primeiro o <b>aporte de volta</b> (mercadoria p/ '+nL+', taxas p/ '+nT+') e só o <b>lucro que sobra é dividido 50/50</b>. Peças de consumo próprio são abatidas a preço de custo do sócio que retirou a peça — veja o detalhe por pedido abaixo.</div>'+
+      '<div class="dz-note">Cada sócio recebe primeiro o <b>aporte de volta</b> (conforme lançado em cada pacote — veja Transporte) e só o <b>lucro que sobra é dividido 50/50</b>. Peças de consumo próprio são abatidas a preço de custo do sócio que retirou a peça — veja o detalhe por pedido abaixo.</div>'+
     '</div>';
 
   // ═══ Detalhe por pedido ═══
@@ -2463,6 +2502,17 @@ function renderTransp(){
         </div>`:""}
       </div>
 
+      <!-- Investimento (aporte de capital por sócio) -->
+      <div style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:12px 13px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:700;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;">💼 Investimento neste pacote</div>
+          <span style="font-size:10px;color:var(--mu);" id="aporteTotal-${l.id}"></span>
+        </div>
+        <div id="aporteList-${l.id}"></div>
+        <button class="btn ghost sm" onclick="addAporte('${l.id}')" style="margin-top:4px;">＋ Aporte</button>
+        <div id="aporteResumo-${l.id}" style="font-size:9.5px;margin-top:7px;"></div>
+      </div>
+
       <!-- Observações -->
       <div class="fld" style="margin-bottom:10px;">
         <label>Observações</label>
@@ -2485,6 +2535,66 @@ function renderTransp(){
 
     </div>`;
   }).join("");
+  lotes.forEach(l=>renderAportesLote(l.id));
+}
+
+function renderAportesLote(loteId){
+  const el=document.getElementById("aporteList-"+loteId); if(!el) return;
+  const l=getLote(loteId); if(!l) return;
+  const rows=aportes.filter(a=>a.loteId===loteId);
+  const custoMercPacote = pedidos.filter(p=>p.loteId===loteId).reduce((a,p)=>a+(getProd(p.prodId).custoUSD||0)*(cfg.cotacao||0)*(p.qtd||1),0);
+  const totalPacote = custoMercPacote + (l.taxa||0);
+  const somaAportes = rows.reduce((a,r)=>a+(r.valor||0),0);
+  const diff = totalPacote - somaAportes;
+
+  el.innerHTML = rows.length ? rows.map((a,i)=>{
+    const u = usuarios.find(x=>x.id===a.usuarioId);
+    return `<div style="display:flex;align-items:center;gap:6px;background:var(--s1);border:1px solid var(--br);border-radius:6px;padding:7px 8px;margin-bottom:5px;">
+      <select class="inp" style="flex:1;min-width:0;font-size:11px;" onchange="updAporte('${loteId}',${i},'usuarioId',this.value)">
+        ${usuarios.map(us=>`<option value="${us.id}" ${us.id===a.usuarioId?"selected":""}>${us.nome}</option>`).join("")}
+      </select>
+      <div class="iu" style="width:110px;flex-shrink:0;">
+        <input class="inp" type="number" step="0.01" value="${a.valor}" style="font-size:11px;" onchange="updAporte('${loteId}',${i},'valor',this.value)">
+        <span>R$</span>
+      </div>
+      <button class="btn danger sm" onclick="delAporte('${loteId}',${i})" style="padding:3px 7px;flex-shrink:0;">✕</button>
+    </div>`;
+  }).join("") : `<div style="font-size:10.5px;color:var(--mu);padding:4px 0;">Nenhum aporte lançado ainda pra este pacote.</div>`;
+
+  const totalEl=document.getElementById("aporteTotal-"+loteId);
+  if(totalEl) totalEl.textContent = "total do pacote "+brl(totalPacote);
+  const resumoEl=document.getElementById("aporteResumo-"+loteId);
+  if(resumoEl){
+    if(Math.abs(diff)<0.01){
+      resumoEl.style.color="var(--gr)";
+      resumoEl.textContent = "✓ "+brl(somaAportes)+" lançado — bate com o total do pacote";
+    } else {
+      resumoEl.style.color="var(--or)";
+      resumoEl.textContent = brl(somaAportes)+" lançado de "+brl(totalPacote)+" · falta alocar "+brl(diff);
+    }
+  }
+}
+function addAporte(loteId){
+  aportes.push({id:"apt"+uid(), loteId, usuarioId:(usuarios[0]||{}).id||"", valor:0, obs:""});
+  persist("ap6_apt", aportes);
+  renderAportesLote(loteId);
+}
+function updAporte(loteId, idx, field, value){
+  const rows=aportes.filter(a=>a.loteId===loteId);
+  const alvo=rows[idx]; if(!alvo) return;
+  const real=aportes.find(a=>a===alvo);
+  if(field==="valor") real.valor=parseFloat(value)||0;
+  if(field==="usuarioId") real.usuarioId=value;
+  persist("ap6_apt", aportes);
+  renderAportesLote(loteId);
+}
+function delAporte(loteId, idx){
+  const rows=aportes.filter(a=>a.loteId===loteId);
+  const alvo=rows[idx]; if(!alvo) return;
+  aportes=aportes.filter(a=>a!==alvo);
+  persist("ap6_apt", aportes);
+  if(_sb) _sb.from("aportes").delete().eq("id",alvo.id).then(()=>{});
+  renderAportesLote(loteId);
 }
 
 function setEnvioStatus(loteId, status){
