@@ -515,6 +515,15 @@ select.inp option{background:#2a1414;color:#f4ecdd;}
 <!-- CAIXA LISTA -->
 <div class="page" id="pg-caixa">
   <div style="margin-bottom:10px;"><div class="ttl">Caixa & Entregas</div><div class="sub">Controle de entrega e recebimento</div></div>
+  <div class="card" style="margin-bottom:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;">👥 Grupos de pagamento</div>
+      <button class="btn ghost sm" onclick="criarGrupo()">＋ Novo grupo</button>
+    </div>
+    <div style="font-size:10px;color:var(--mu);margin-bottom:10px;">Quando um cliente compra várias peças (tamanhos/modelos diferentes) mas paga tudo junto (ex: 3x parcelado no total), agrupe os pedidos dele aqui. A entrega de cada peça continua marcada separada; o pagamento fica combinado.</div>
+    <div id="clientesSugeridos"></div>
+    <div id="gruposList"></div>
+  </div>
   <div class="kg" id="cxKpis"></div>
   <div class="fr">
     <input class="inp" id="cxBusca" placeholder="🔍  Buscar..." oninput="renderCaixa()">
@@ -532,6 +541,12 @@ select.inp option{background:#2a1414;color:#f4ecdd;}
 <div class="page" id="pg-caixa-det">
   <div style="margin-bottom:13px;"><h2 class="ttl" id="cxDetTtl">Pagamento</h2></div>
   <div id="cxDetBody"></div>
+</div>
+
+<!-- GRUPO DETALHE -->
+<div class="page" id="pg-grupo-det">
+  <div style="margin-bottom:13px;"><h2 class="ttl" id="grpDetTtl">Pagamento em grupo</h2></div>
+  <div id="grpDetBody"></div>
 </div>
 
 <!-- DASHBOARD -->
@@ -707,7 +722,7 @@ const DEMO_PROD = [
 // ═══════════════════
 // STATE
 // ═══════════════════
-let pedidos=[], lotes=[], pags=[], modelos=[], produtos=[], estoque=[], aportes=[], remessas=[], cfg={cotacao:6.2};
+let pedidos=[], lotes=[], pags=[], modelos=[], produtos=[], estoque=[], aportes=[], remessas=[], grupos=[], pagsGrupo=[], cfg={cotacao:6.2};
 let usuarios=[
   {id:"u1", nome:"Lucas",  contato:"", cargo:"Sócio", usuario:"Guirau",  senhaHash:"28119fef017d1ef97b290909efb02f43836d90d6373b51ba1cd5bf041e1a9d4d"},
   {id:"u2", nome:"Thiago", contato:"", cargo:"Sócio", usuario:"Tannuri", senhaHash:"b4d40da1fd8404b94d7419d82dbc5412c080441290ddec42a4f7916079e7ad1d"},
@@ -738,6 +753,8 @@ async function _syncToSupabase(k, v){
   else if(k==="ap6_estq") await _upsertMany("estoque",   v, estoqueToRow);
   else if(k==="ap6_apt") await _upsertMany("aportes",   v, aporteToRow);
   else if(k==="ap6_rem") await _upsertMany("remessas",  v, remessaToRow);
+  else if(k==="ap6_grp") await _upsertMany("grupos",    v, grupoToRow);
+  else if(k==="ap6_pgg") await _upsertMany("pagamentos_grupo", v, pagGrupoToRow);
   else if(k==="ap6_cfg") {
     await _sb.from("config").upsert({id:"main", cotacao:v.cotacao});
   }
@@ -763,8 +780,15 @@ function pedidoToRow(p){
     lote_id:p.loteId||null,
     preco_final:p.precoFinal||0, custo_total:p.custo_total||0,
     lucro:p.lucro||0, margem:p.margem||0,
-    tipo_pedido:p.tipoPedido||"venda", desconto:p.desconto||0
+    tipo_pedido:p.tipoPedido||"venda", desconto:p.desconto||0,
+    grupo_id:p.grupoId||null
   };
+}
+function grupoToRow(g){
+  return {id:g.id, cliente:g.cliente||"", data:g.data||null, obs:g.obs||""};
+}
+function pagGrupoToRow(pg){
+  return {id:pg.id, grupo_id:pg.grupoId, parcelas:pg.parcelas||[], desconto:pg.desconto||0};
 }
 function pacoteToRow(l){
   return {
@@ -809,8 +833,15 @@ function rowToPedido(r){
     nomePerso:r.nome_perso, numero:r.numero, obs:r.obs, loteId:r.lote_id,
     precoFinal:parseFloat(r.preco_final), custo_total:parseFloat(r.custo_total),
     lucro:parseFloat(r.lucro), margem:parseFloat(r.margem),
-    tipoPedido:r.tipo_pedido||"venda", desconto:parseFloat(r.desconto)||0
+    tipoPedido:r.tipo_pedido||"venda", desconto:parseFloat(r.desconto)||0,
+    grupoId:r.grupo_id||null
   };
+}
+function rowToGrupo(r){
+  return {id:r.id, cliente:r.cliente||"", data:r.data, obs:r.obs||""};
+}
+function rowToPagGrupo(r){
+  return {id:r.id, grupoId:r.grupo_id, parcelas:r.parcelas||[], desconto:parseFloat(r.desconto)||0};
 }
 function rowToPacote(r){
   return {
@@ -857,7 +888,7 @@ async function loadAll(){
     return;
   }
   try{
-    const [r1,r2,r3,r4,r5,r6,r7,r8,r9,r10] = await Promise.all([
+    const [r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12] = await Promise.all([
       _sb.from("pedidos").select("*"),
       _sb.from("pacotes").select("*"),
       _sb.from("pagamentos").select("*"),
@@ -868,8 +899,10 @@ async function loadAll(){
       _sb.from("estoque").select("*"),
       _sb.from("aportes").select("*"),
       _sb.from("remessas").select("*"),
+      _sb.from("grupos").select("*"),
+      _sb.from("pagamentos_grupo").select("*"),
     ]);
-    const respostas = {pedidos:r1, pacotes:r2, pagamentos:r3, modelos:r4, produtos:r5, config:r6, usuarios:r7, estoque:r8, aportes:r9, remessas:r10};
+    const respostas = {pedidos:r1, pacotes:r2, pagamentos:r3, modelos:r4, produtos:r5, config:r6, usuarios:r7, estoque:r8, aportes:r9, remessas:r10, grupos:r11, pagamentos_grupo:r12};
     const falhas = Object.entries(respostas).filter(([,r])=>r.error).map(([k])=>k);
     if(falhas.length){
       _loadError = true;
@@ -888,6 +921,8 @@ async function loadAll(){
     if(!r8.error) estoque  = (r8.data||[]).map(rowToEstoque);
     if(!r9.error) aportes  = (r9.data||[]).map(rowToAporte);
     if(!r10.error) remessas = (r10.data||[]).map(rowToRemessa);
+    if(!r11.error) grupos = (r11.data||[]).map(rowToGrupo);
+    if(!r12.error) pagsGrupo = (r12.data||[]).map(rowToPagGrupo);
   }catch(e){
     _loadError = true;
     console.warn("Supabase load error:", e);
@@ -914,6 +949,25 @@ function _sugerirNumPacote(){
   return String(max+1).padStart(3,"0");
 }
 const getPag = id=>pags.find(x=>x.pedidoId===id)||null;
+const getGrupo   = id=>grupos.find(x=>x.id===id)||null;
+const getPagGrupo= grupoId=>pagsGrupo.find(x=>x.grupoId===grupoId)||null;
+function _pedidosDoGrupo(grupoId){ return pedidos.filter(p=>p.grupoId===grupoId); }
+function _totalGrupoBruto(grupoId){ return _pedidosDoGrupo(grupoId).reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0); }
+function _totalGrupoLiquido(grupoId){
+  const pg=getPagGrupo(grupoId);
+  return Math.max(0, _totalGrupoBruto(grupoId) - (pg?.desconto||0));
+}
+function _clientesComMultiplosPedidos(){
+  const porCliente={};
+  pedidos.filter(p=>!p.grupoId && (p.tipoPedido||"venda")==="venda").forEach(p=>{
+    const key=(p.cliente||"").trim();
+    if(!key) return;
+    (porCliente[key]=porCliente[key]||[]).push(p);
+  });
+  return Object.keys(porCliente).filter(k=>porCliente[k].length>1).map(k=>({
+    cliente:k, pedidos:porCliente[k], pecas:porCliente[k].reduce((a,p)=>a+(p.qtd||1),0)
+  }));
+}
 
 function calcCusto(prodId,loteId){
   const base=(getProd(prodId).custoUSD||0)*cfg.cotacao;
@@ -1708,13 +1762,108 @@ function resumoLote(id){
 // ═══════════════════
 // CAIXA
 // ═══════════════════
+function criarGrupo(){
+  const cliente = prompt("Nome do cliente pra agrupar os pedidos:","");
+  if(cliente===null) return;
+  const nome = cliente.trim();
+  if(!nome){ toast("Informe o nome do cliente.", false); return; }
+  criarGrupoParaCliente(nome);
+}
+function criarGrupoParaCliente(nomeCliente){
+  const g = {id:"grp"+uid(), cliente:nomeCliente, data:hoje(), obs:""};
+  grupos.push(g);
+  persist("ap6_grp", grupos);
+  const pgg = {id:"pgg"+uid(), grupoId:g.id, parcelas:[], desconto:0};
+  pagsGrupo.push(pgg);
+  persist("ap6_pgg", pagsGrupo);
+  // Pré-seleciona automaticamente os pedidos ainda soltos desse mesmo cliente
+  pedidos.forEach(p=>{
+    if(!p.grupoId && (p.tipoPedido||"venda")==="venda" && (p.cliente||"").trim().toLowerCase()===nomeCliente.trim().toLowerCase()){
+      p.grupoId = g.id;
+    }
+  });
+  persist("ap6_ped", pedidos);
+  renderGruposCliente();
+  renderCaixa();
+  toast("Grupo criado para "+nomeCliente, true);
+}
+function delGrupo(grupoId){
+  const g = getGrupo(grupoId); if(!g) return;
+  if(!confirm("Excluir o grupo de "+g.cliente+"? Os pedidos voltam a ser cobrados separadamente (o pagamento combinado será perdido).")) return;
+  pedidos.forEach(p=>{ if(p.grupoId===grupoId) p.grupoId=null; });
+  persist("ap6_ped", pedidos);
+  pagsGrupo = pagsGrupo.filter(pg=>pg.grupoId!==grupoId);
+  persist("ap6_pgg", pagsGrupo);
+  if(_sb) _sb.from("pagamentos_grupo").delete().eq("grupo_id",grupoId).then(()=>{});
+  grupos = grupos.filter(g2=>g2.id!==grupoId);
+  persist("ap6_grp", grupos);
+  if(_sb) _sb.from("grupos").delete().eq("id",grupoId).then(()=>{});
+  renderGruposCliente();
+  renderCaixa();
+}
+function togglePedidoGrupo(grupoId, pedId, checked){
+  const p = pedidos.find(x=>x.id===pedId); if(!p) return;
+  p.grupoId = checked ? grupoId : null;
+  persist("ap6_ped", pedidos);
+  renderGruposCliente();
+  renderCaixa();
+}
+function renderGruposCliente(){
+  const sugEl = document.getElementById("clientesSugeridos");
+  const listEl = document.getElementById("gruposList");
+  if(!sugEl || !listEl) return;
+
+  const sugeridos = _clientesComMultiplosPedidos();
+  sugEl.innerHTML = sugeridos.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:${grupos.length?"10px":"0"};">
+    ${sugeridos.map(s=>`<button class="btn gold sm" onclick="criarGrupoParaCliente('${s.cliente.replace(/'/g,"\\'")}')">🐟 Agrupar ${s.cliente} <small>(${s.pecas} pçs)</small></button>`).join("")}
+  </div>` : "";
+
+  if(!grupos.length){ listEl.innerHTML=""; return; }
+
+  listEl.innerHTML = grupos.map(g=>{
+    const membros = _pedidosDoGrupo(g.id);
+    const pecas = membros.reduce((a,p)=>a+(p.qtd||1),0);
+    const bigFish = pecas>=5;
+    const candidatos = pedidos.filter(p=>(p.tipoPedido||"venda")==="venda" && (p.cliente||"").trim().toLowerCase()===g.cliente.trim().toLowerCase());
+    const totalLiquido = _totalGrupoLiquido(g.id);
+    return `<div style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:11px 12px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--iv);">${bigFish?"🐟 ":""}${g.cliente}</div>
+          <div style="font-size:10px;color:var(--mu);margin-top:1px;">${membros.length} pedido${membros.length!==1?"s":""} · ${pecas} peça${pecas!==1?"s":""} · ${brl(totalLiquido)}${bigFish?` · <span style="color:var(--gold);font-weight:700;">big fish</span>`:""}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn ghost sm" onclick="openGrpDet('${g.id}')">Gerenciar pagamento</button>
+          <button class="btn danger sm" onclick="delGrupo('${g.id}')">✕</button>
+        </div>
+      </div>
+      <div style="font-size:9.5px;color:var(--mu);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;">Pedidos deste cliente</div>
+      ${candidatos.length?candidatos.map(p=>{
+        const deOutroGrupo = p.grupoId && p.grupoId!==g.id;
+        return `<label style="display:flex;align-items:center;gap:7px;padding:2px 0;font-size:11px;color:${deOutroGrupo?"var(--mu)":"var(--ink)"};${deOutroGrupo?"opacity:.5;":""}">
+          <input type="checkbox" ${p.grupoId===g.id?"checked":""} ${deOutroGrupo?"disabled":""}
+            onchange="togglePedidoGrupo('${g.id}','${p.id}',this.checked)">
+          ${getMod(p.modelo).label} · ${getProd(p.prodId).label} ${p.tamanho}${p.qtd>1?" ×"+p.qtd:""}${deOutroGrupo?` <small>(já em outro grupo)</small>`:""}
+        </label>`;
+      }).join(""):`<div style="font-size:10px;color:var(--mu);">Nenhum pedido de venda encontrado com esse nome de cliente.</div>`}
+    </div>`;
+  }).join("");
+}
+
 function renderCaixa(){
+  renderGruposCliente();
+
   // Faturamento/Recebido/A receber refletem só VENDAS reais — consumo próprio (preço de
   // custo, abatido do sócio) e estoque (ainda não vendido) não são movimentação de caixa
   // de cliente, por isso ficam de fora daqui (aparecem na aba Investimento e no Estoque).
   const vendasCx = pedidos.filter(p=>(p.tipoPedido||"venda")==="venda");
-  const totFat=vendasCx.reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0);
-  const recP=vendasCx.reduce((a,p)=>{const pg=getPag(p.id);return a+((pg?.parcelas||[]).filter(x=>x.recebido).reduce((b,x)=>b+(x.valor||0),0));},0);
+  const vendasSoltas = vendasCx.filter(p=>!p.grupoId);
+  const gruposComMembro = grupos.filter(g=>_pedidosDoGrupo(g.id).length>0);
+
+  const totFat = vendasSoltas.reduce((a,p)=>a+(p.precoFinal||0)*(p.qtd||1),0)
+    + gruposComMembro.reduce((a,g)=>a+_totalGrupoLiquido(g.id),0);
+  const recP = vendasSoltas.reduce((a,p)=>{const pg=getPag(p.id);return a+((pg?.parcelas||[]).filter(x=>x.recebido).reduce((b,x)=>b+(x.valor||0),0));},0)
+    + gruposComMembro.reduce((a,g)=>{const pgg=getPagGrupo(g.id);return a+((pgg?.parcelas||[]).filter(x=>x.recebido).reduce((b,x)=>b+(x.valor||0),0));},0);
   const ent=pags.filter(x=>x.entregue===true).length;
   document.getElementById("cxKpis").innerHTML=[
     {l:"Faturamento (vendas)",v:brl(totFat),c:"var(--gold)",s:"consumo próprio e estoque não entram"},
@@ -1726,8 +1875,9 @@ function renderCaixa(){
   const b=(document.getElementById("cxBusca")?.value||"").toLowerCase();
   const fs=document.getElementById("cxFSt")?.value||"";
 
-  // Enriquecer cada pedido com os flags de pagamento/entrega antes de filtrar
+  // Enriquecer cada pedido SOLTO (fora de grupo) com os flags de pagamento/entrega
   const itens = pedidos
+    .filter(p=>!p.grupoId)
     .filter(p=>!b||p.cliente.toLowerCase().includes(b))
     .map(p=>{
       const pg=getPag(p.id)||{entregue:false,parcelas:[]};
@@ -1750,9 +1900,70 @@ function renderCaixa(){
       return true;
     });
 
+  // Grupos de pagamento — cada grupo vira UM card agregado
+  const itensGrupo = gruposComMembro
+    .filter(g=>!b||g.cliente.toLowerCase().includes(b))
+    .map(g=>{
+      const membros = _pedidosDoGrupo(g.id);
+      const pgg = getPagGrupo(g.id) || {parcelas:[]};
+      const parcelas = pgg.parcelas||[];
+      const tp = parcelas.reduce((a,x)=>a+(x.valor||0),0);
+      const pendentes = parcelas.filter(x=>!x.recebido);
+      const rp = parcelas.filter(x=>x.recebido).reduce((a,x)=>a+(x.valor||0),0);
+      const restante = Math.max(0,tp-rp);
+      const pagoCompleto = tp>0 && pendentes.length===0;
+      const entreguesN = membros.filter(p=>!!(getPag(p.id)||{}).entregue).length;
+      const entregue = membros.length>0 && entreguesN===membros.length;
+      const finalizado = pagoCompleto && entregue;
+      const isParcelado = parcelas.length>1;
+      const pecas = membros.reduce((a,p)=>a+(p.qtd||1),0);
+      return {g,membros,pecas,tp,rp,restante,pendentes,pagoCompleto,entregue,entreguesN,finalizado,isParcelado,precoFinalGrupo:_totalGrupoLiquido(g.id)};
+    })
+    .filter(it=>{
+      if(!fs) return true;
+      if(fs==="pgpendente") return !it.pagoCompleto;
+      if(fs==="entregue") return it.entregue;
+      if(fs==="finalizado") return it.finalizado;
+      return true;
+    });
+
   const el=document.getElementById("cxList");
-  if(!itens.length){el.innerHTML=`<div class="card" style="text-align:center;padding:32px;"><div style="color:var(--mu);font-size:12px;">Nenhum registro.</div></div>`;return;}
-  el.innerHTML=itens.map(({p,rp,tp,restante,pendentes,pagoCompleto,entregue,finalizado,isParcelado})=>{
+  if(!itens.length && !itensGrupo.length){el.innerHTML=`<div class="card" style="text-align:center;padding:32px;"><div style="color:var(--mu);font-size:12px;">Nenhum registro.</div></div>`;return;}
+
+  const htmlGrupos = itensGrupo.map(({g,membros,pecas,rp,tp,restante,pendentes,pagoCompleto,entregue,entreguesN,finalizado,isParcelado,precoFinalGrupo})=>{
+    const bigFish = pecas>=5;
+    const parcelaInfo = (isParcelado && pendentes.length>0)
+      ? `<div style="font-size:9px;color:var(--or);font-weight:700;margin-top:2px;">⏳ Faltam ${pendentes.length} parcela${pendentes.length>1?"s":""} · ${brl(restante)}</div>`
+      : (!pagoCompleto && restante>0)
+        ? `<div style="font-size:9px;color:var(--or);font-weight:700;margin-top:2px;">⏳ Falta ${brl(restante)}</div>`
+        : "";
+    const entregaBadge = entregue
+      ? `<span style="font-size:9px;font-weight:700;color:var(--gr);background:var(--gr-lt);border:1px solid var(--gr);border-radius:99px;padding:2px 7px;white-space:nowrap;">✅ Entregue</span>`
+      : `<span style="font-size:9px;font-weight:700;color:var(--mu);background:var(--s3);border:1px solid var(--br);border-radius:99px;padding:2px 7px;white-space:nowrap;">⏳ ${entreguesN}/${membros.length} entregues</span>`;
+    const pagamentoBadge = pagoCompleto
+      ? `<span style="font-size:9px;font-weight:700;color:var(--gr);background:var(--gr-lt);border:1px solid var(--gr);border-radius:99px;padding:2px 7px;white-space:nowrap;">💰 Pago</span>`
+      : `<span style="font-size:9px;font-weight:700;color:var(--or);background:var(--or-lt);border:1px solid var(--or);border-radius:99px;padding:2px 7px;white-space:nowrap;">⚠ Pendente</span>`;
+    const borderAccent = !pagoCompleto ? "var(--or)" : "var(--br)";
+    const opacityRow = finalizado ? "0.5" : "1";
+    return`<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 11px;background:var(--s1);border:1px solid var(--gold)55;border-left:3px solid ${borderAccent};border-radius:7px;margin-bottom:5px;flex-wrap:wrap;opacity:${opacityRow};transition:opacity .15s;">
+      <div style="flex:1;min-width:100px;">
+        <div style="font-weight:700;font-size:13.5px;">${bigFish?"🐟 ":""}${g.cliente}<span style="color:var(--gold);font-size:9px;font-weight:700;"> · GRUPO</span>${finalizado?` <span style="color:var(--gr);font-size:10px;font-weight:700;">· ✓ Concluído</span>`:""}</div>
+        <div style="font-size:10px;color:var(--mu);margin-top:2px;">${membros.length} pedido${membros.length!==1?"s":""} · ${pecas} peça${pecas!==1?"s":""}</div>
+        ${parcelaInfo}
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold);">${brl(precoFinalGrupo)}</div>
+        ${rp>0&&rp<tp?`<div style="font-size:9px;color:var(--gr);font-weight:600;">✓ Rec: ${brl(rp)}</div>`:""}
+      </div>
+      <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+        ${pagamentoBadge}
+        ${entregaBadge}
+        <button class="btn ghost sm" onclick="openGrpDet('${g.id}')">Gerenciar</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  const htmlSoltos = itens.map(({p,rp,tp,restante,pendentes,pagoCompleto,entregue,finalizado,isParcelado})=>{
     const parcelaInfo = (isParcelado && pendentes.length>0)
       ? `<div style="font-size:9px;color:var(--or);font-weight:700;margin-top:2px;">⏳ Faltam ${pendentes.length} parcela${pendentes.length>1?"s":""} · ${brl(restante)}</div>`
       : (!pagoCompleto && restante>0)
@@ -1783,6 +1994,8 @@ function renderCaixa(){
       </div>
     </div>`;
   }).join("");
+
+  el.innerHTML = htmlGrupos + htmlSoltos;
 }
 
 function openCxDet(pedId){
@@ -1964,6 +2177,151 @@ function atualizarResumoCx(pedId){
   const elP=document.getElementById("cx-pendente");
   try{
     if(elT) elT.textContent=brl(totPedido);
+    if(elR) elR.textContent=brl(totPago);
+    if(elP){ elP.textContent=brl(rest); elP.style.color=rest>0?"var(--or)":"var(--mu)"; }
+  }catch(e){}
+}
+
+// ═══════════════════
+// GRUPO DE PAGAMENTO (vários pedidos do mesmo cliente, 1 pagamento combinado)
+// ═══════════════════
+function openGrpDet(grupoId){
+  curTab="caixa";
+  const g=getGrupo(grupoId); if(!g) return;
+  let pgg=getPagGrupo(grupoId);
+  if(!pgg){
+    pgg={id:"pgg"+uid(), grupoId, parcelas:[{valor:_totalGrupoBruto(grupoId),recebido:false,vencimento:""}], desconto:0};
+    pagsGrupo.push(pgg); persist("ap6_pgg",pagsGrupo);
+  }
+  const membros = _pedidosDoGrupo(grupoId);
+  const totBruto = _totalGrupoBruto(grupoId);
+  const totLiquido = _totalGrupoLiquido(grupoId);
+  const totPago = (pgg.parcelas||[]).filter(x=>x.recebido).reduce((a,x)=>a+(x.valor||0),0);
+  const restante = totLiquido-totPago;
+
+  const ttlEl=document.getElementById("grpDetTtl"); if(ttlEl) ttlEl.textContent = g.cliente;
+  document.getElementById("grpDetBody").innerHTML = `
+    <!-- Peças do grupo -->
+    <div style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Peças deste grupo (${membros.length})</div>
+      ${membros.map(p=>{
+        const pg=getPag(p.id)||{entregue:false};
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--br);">
+          <div style="width:8px;height:8px;border-radius:50%;background:${getMod(p.modelo).cor};flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;">${getMod(p.modelo).label} <span style="color:var(--mu);font-weight:400;">${getProd(p.prodId).label} · ${p.tamanho}${p.qtd>1?" ×"+p.qtd:""}</span></div>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold);">${brl((p.precoFinal||0)*(p.qtd||1))}</span>
+          <button class="btn ${pg.entregue?"ok":"ghost"} sm" onclick="setEntrega('${p.id}',${!pg.entregue});openGrpDet('${grupoId}')" style="padding:3px 8px;">${pg.entregue?"✅ Entregue":"⏳ Marcar entregue"}</button>
+        </div>`;
+      }).join("")}
+    </div>
+
+    <!-- Desconto (aplicado sobre o total do grupo) -->
+    <div class="fld" style="margin-bottom:14px;">
+      <label>Desconto no grupo (R$)</label>
+      <div class="iu">
+        <input class="inp" type="number" step="0.01" min="0" id="grp-desconto" value="${pgg.desconto||0}" onchange="aplicarDescontoGrupo('${grupoId}',this.value)">
+        <span>R$</span>
+      </div>
+      <div style="font-size:9.5px;color:var(--mu);margin-top:5px;">Aplicado sobre a soma de todas as peças do grupo (${brl(totBruto)} brutos).</div>
+    </div>
+
+    <!-- Resumo financeiro -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;min-width:0;margin-bottom:14px;">
+      <div style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Total</div>
+        <div id="grp-total" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--gold);">${brl(totLiquido)}</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid ${totPago>0?"var(--gr)":"var(--br)"};border-radius:7px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Pago</div>
+        <div id="grp-recebido" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--gr);">${brl(totPago)}</div>
+      </div>
+      <div style="background:var(--s2);border:1px solid ${restante>0?"var(--or)":"var(--br)"};border-radius:7px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">A receber</div>
+        <div id="grp-pendente" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${restante>0?"var(--or)":"var(--mu)"};">${brl(restante)}</div>
+      </div>
+    </div>
+
+    <!-- Parcelas -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Parcelas de pagamento (combinadas)</div>
+      <button class="btn ghost sm" onclick="addParcGrupo('${grupoId}')">＋ Parcela</button>
+    </div>
+    <div id="parcListGrp"></div>
+  `;
+  renderParcsGrupo(grupoId);
+  showForm("pg-grupo-det","pagamento em grupo");
+}
+
+function renderParcsGrupo(grupoId){
+  const pgg=getPagGrupo(grupoId); const el=document.getElementById("parcListGrp");
+  if(!el||!pgg) return;
+  el.innerHTML=(pgg.parcelas||[]).map((pc,i)=>`
+    <div style="background:var(--s2);border:1px solid ${pc.recebido?"var(--gr)44":"var(--br)"};
+      border-radius:7px;padding:11px 12px;margin-bottom:7px;">
+      <div class="fld" style="margin-bottom:9px;">
+        <label>Valor</label>
+        <div class="iu">
+          <input class="inp" type="number" step="0.01" value="${pc.valor}"
+            style="min-width:0;width:100%;font-size:15px;font-weight:600;"
+            onchange="updParcGrupo('${grupoId}',${i},'valor',this.value)">
+          <span>R$</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <button onclick="updParcGrupo('${grupoId}',${i},'rec',${!pc.recebido})"
+          style="flex:1;padding:8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none;
+            background:${pc.recebido?"var(--gr)22":"var(--s3)"};
+            color:${pc.recebido?"var(--gr)":"var(--mu)"};
+            border:1px solid ${pc.recebido?"var(--gr)44":"var(--br)"};">
+          ${pc.recebido?"✓ Pago":"Marcar como pago"}
+        </button>
+        ${pgg.parcelas.length>1?`<button class="btn danger sm" onclick="delParcGrupo('${grupoId}',${i})">✕</button>`:""}
+      </div>
+    </div>`).join("");
+}
+
+function aplicarDescontoGrupo(grupoId, valor){
+  const i=pagsGrupo.findIndex(x=>x.grupoId===grupoId); if(i<0) return;
+  pagsGrupo[i].desconto = Math.max(0,parseFloat(valor)||0);
+  persist("ap6_pgg", pagsGrupo);
+  toast("Desconto aplicado · novo total "+brl(_totalGrupoLiquido(grupoId)));
+  openGrpDet(grupoId);
+}
+function addParcGrupo(grupoId){
+  const i=pagsGrupo.findIndex(x=>x.grupoId===grupoId); if(i<0) return;
+  pagsGrupo[i].parcelas.push({valor:0,recebido:false,vencimento:""});
+  persist("ap6_pgg", pagsGrupo);
+  renderParcsGrupo(grupoId);
+  atualizarResumoGrupo(grupoId);
+}
+function delParcGrupo(grupoId, idx){
+  const i=pagsGrupo.findIndex(x=>x.grupoId===grupoId); if(i<0) return;
+  pagsGrupo[i].parcelas.splice(idx,1);
+  persist("ap6_pgg", pagsGrupo);
+  renderParcsGrupo(grupoId);
+  atualizarResumoGrupo(grupoId);
+}
+function updParcGrupo(grupoId, idx, field, value){
+  const i=pagsGrupo.findIndex(x=>x.grupoId===grupoId); if(i<0) return;
+  if(field==="valor") pagsGrupo[i].parcelas[idx].valor=parseFloat(value)||0;
+  if(field==="venc") pagsGrupo[i].parcelas[idx].vencimento=value;
+  if(field==="rec") pagsGrupo[i].parcelas[idx].recebido=Boolean(value);
+  persist("ap6_pgg", pagsGrupo);
+  renderParcsGrupo(grupoId);
+  atualizarResumoGrupo(grupoId);
+}
+function atualizarResumoGrupo(grupoId){
+  const pgg=getPagGrupo(grupoId); if(!pgg) return;
+  const totLiquido=_totalGrupoLiquido(grupoId);
+  const totPago=(pgg.parcelas||[]).filter(x=>x.recebido).reduce((a,x)=>a+(x.valor||0),0);
+  const rest=totLiquido-totPago;
+  const elT=document.getElementById("grp-total");
+  const elR=document.getElementById("grp-recebido");
+  const elP=document.getElementById("grp-pendente");
+  try{
+    if(elT) elT.textContent=brl(totLiquido);
     if(elR) elR.textContent=brl(totPago);
     if(elP){ elP.textContent=brl(rest); elP.style.color=rest>0?"var(--or)":"var(--mu)"; }
   }catch(e){}
