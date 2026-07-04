@@ -905,6 +905,14 @@ const getMod = id=>modelos.find(x=>x.id===id)||{label:id,cor:"#C9A84C"};
 const getProd= id=>produtos.find(x=>x.id===id)||{label:id,custoUSD:0,vendaBRL:0};
 const getLote= id=>lotes.find(x=>x.id===id)||null;
 const getRemessa= id=>remessas.find(x=>x.id===id)||null;
+function _sugerirNumPacote(){
+  let max = 0;
+  (lotes||[]).forEach(l=>{
+    const matches = String(l.num||"").match(/\d+/g);
+    if(matches) matches.forEach(m=>{ const n=parseInt(m,10); if(n>max) max=n; });
+  });
+  return String(max+1).padStart(3,"0");
+}
 const getPag = id=>pags.find(x=>x.pedidoId===id)||null;
 
 function calcCusto(prodId,loteId){
@@ -1468,7 +1476,7 @@ function openLoteForm(id){
   try {
   const l=id?getLote(id):null;
   const lfTitleEl=document.getElementById("lfTitle"); if(lfTitleEl) lfTitleEl.textContent=l?"Editar Pacote":"Novo Pacote";
-  const lfNumEl=document.getElementById("lfNum"); if(lfNumEl) lfNumEl.value=l?l.num:"";
+  const lfNumEl=document.getElementById("lfNum"); if(lfNumEl) lfNumEl.value=l?l.num:_sugerirNumPacote();
   const lfDataEl=document.getElementById("lfData"); if(lfDataEl) lfDataEl.value=l?l.data:hoje();
   const lfDescEl=document.getElementById("lfDesc"); if(lfDescEl) lfDescEl.value=l?(l.desc||""):"";
   const lfTotalEl=document.getElementById("lfTotal"); if(lfTotalEl) lfTotalEl.value=l?(l.totalPecas||""):"";
@@ -2530,14 +2538,10 @@ function renderTransp(){
         </div>`:""}
       </div>
 
-      <!-- Remessa (agrupamento de compra) -->
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-        <label style="font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;">📦 Remessa de compra</label>
-        <select class="inp" style="flex:1;min-width:140px;font-size:11px;" onchange="atribuirRemessa('${l.id}',this.value)">
-          <option value="">— pacote independente —</option>
-          ${(remessas||[]).map(r=>`<option value="${r.id}" ${r.id===l.remessaId?"selected":""}>${r.num}</option>`).join("")}
-        </select>
-      </div>
+      ${l.remessaId?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:var(--mu);">
+        <span style="background:var(--s3);border:1px solid var(--br);border-radius:99px;padding:3px 10px;">📦 Parte da <b style="color:var(--iv);">${(getRemessa(l.remessaId)||{}).num||"remessa"}</b></span>
+        <span style="color:var(--mu);">— pra mudar, use a lista de pacotes lá em cima, em "Remessas de compra"</span>
+      </div>`:""}
 
       <!-- Investimento (aporte de capital por sócio) -->
       <div style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:12px 13px;margin-bottom:12px;">
@@ -2627,6 +2631,19 @@ function renderRemessas(){
           <div style="font-size:10px;color:var(--mu);margin-top:1px;">${r.data||""} · ${pacs.length} pacote${pacs.length!==1?"s":""} · ${pacs.map(p=>p.num).join(", ")||"nenhum pacote vinculado"}</div>
         </div>
         <button class="btn danger sm" onclick="delRemessa('${r.id}')" style="flex-shrink:0;">✕</button>
+      </div>
+
+      <!-- Marcar quais pacotes entram nesta remessa -->
+      <div style="background:var(--s1);border:1px solid var(--br);border-radius:7px;padding:9px 11px;margin-bottom:10px;">
+        <div style="font-size:9.5px;font-weight:700;color:var(--mu);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Pacotes desta remessa</div>
+        ${!lotes.length?'<div style="font-size:10px;color:var(--mu);">Nenhum pacote criado ainda.</div>':lotes.map(l=>{
+          const deOutra = l.remessaId && l.remessaId!==r.id;
+          return `<label style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:11.5px;color:${deOutra?"var(--mu)":"var(--ink)"};${deOutra?"opacity:.5;":""}">
+            <input type="checkbox" ${l.remessaId===r.id?"checked":""} ${deOutra?"disabled":""}
+              onchange="atribuirRemessa('${l.id}', this.checked?'${r.id}':'')">
+            Pacote ${l.num}${deOutra?` <small>(já em ${(getRemessa(l.remessaId)||{}).num||"outra remessa"})</small>`:""}
+          </label>`;
+        }).join("")}
       </div>
 
       <!-- Valor esperado, calculado peça a peça, pra validar com o fornecedor -->
