@@ -581,6 +581,14 @@ select.inp option{background:#2a1414;color:#f4ecdd;}
   <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
     <div><div class="ttl">Envio & Transportadora</div><div class="sub">Acompanhe o status de cada pedido</div></div>
   </div>
+  <div class="card" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;">📦 Remessas de compra</div>
+      <button class="btn ghost sm" onclick="criarRemessa()">＋ Nova remessa</button>
+    </div>
+    <div style="font-size:10px;color:var(--mu);margin-bottom:10px;">Quando você compra vários pacotes de uma vez do fornecedor (paga a mercadoria junto, mas os pacotes chegam e pagam taxa separado), agrupe-os aqui numa remessa. O aporte de mercadoria é lançado 1x na remessa; a taxa de importação continua sendo lançada por pacote.</div>
+    <div id="remessasList"></div>
+  </div>
   <div id="transpList"></div>
 </div>
 
@@ -699,7 +707,7 @@ const DEMO_PROD = [
 // ═══════════════════
 // STATE
 // ═══════════════════
-let pedidos=[], lotes=[], pags=[], modelos=[], produtos=[], estoque=[], aportes=[], cfg={cotacao:6.2};
+let pedidos=[], lotes=[], pags=[], modelos=[], produtos=[], estoque=[], aportes=[], remessas=[], cfg={cotacao:6.2};
 let usuarios=[
   {id:"u1", nome:"Lucas",  contato:"", cargo:"Sócio", usuario:"Guirau",  senhaHash:"28119fef017d1ef97b290909efb02f43836d90d6373b51ba1cd5bf041e1a9d4d"},
   {id:"u2", nome:"Thiago", contato:"", cargo:"Sócio", usuario:"Tannuri", senhaHash:"b4d40da1fd8404b94d7419d82dbc5412c080441290ddec42a4f7916079e7ad1d"},
@@ -729,6 +737,7 @@ async function _syncToSupabase(k, v){
   else if(k==="ap6_usr") await _upsertMany("usuarios",   v, usuarioToRow);
   else if(k==="ap6_estq") await _upsertMany("estoque",   v, estoqueToRow);
   else if(k==="ap6_apt") await _upsertMany("aportes",   v, aporteToRow);
+  else if(k==="ap6_rem") await _upsertMany("remessas",  v, remessaToRow);
   else if(k==="ap6_cfg") {
     await _sb.from("config").upsert({id:"main", cotacao:v.cotacao});
   }
@@ -763,8 +772,11 @@ function pacoteToRow(l){
     responsavel_id:l.responsavelId||null, total_pecas:l.totalPecas||0,
     taxa:l.taxa||0, envio_status:l.envioStatus||"aguardando",
     transportadora:l.transportadora||"", codigo_rastreio:l.codigoRastreio||"",
-    obs_envio:l.obsEnvio||""
+    obs_envio:l.obsEnvio||"", remessa_id:l.remessaId||null
   };
+}
+function remessaToRow(r){
+  return {id:r.id, num:r.num, data:r.data||null, obs:r.obs||""};
 }
 function pagamentoToRow(pg){
   return {
@@ -785,7 +797,7 @@ function estoqueToRow(e){
   return {id:e.id, modelo_id:e.modeloId, tamanho:e.tamanho||"M", genero:e.genero||"Masculino", qtd:e.qtd||0};
 }
 function aporteToRow(a){
-  return {id:a.id, pacote_id:a.loteId, usuario_id:a.usuarioId, valor:a.valor||0, obs:a.obs||""};
+  return {id:a.id, pacote_id:a.loteId||null, remessa_id:a.remessaId||null, usuario_id:a.usuarioId, valor:a.valor||0, obs:a.obs||""};
 }
 
 // Mappers: linha do banco → JS object
@@ -806,8 +818,11 @@ function rowToPacote(r){
     responsavelId:r.responsavel_id, totalPecas:r.total_pecas,
     taxa:parseFloat(r.taxa||0), envioStatus:r.envio_status,
     transportadora:r.transportadora, codigoRastreio:r.codigo_rastreio,
-    obsEnvio:r.obs_envio
+    obsEnvio:r.obs_envio, remessaId:r.remessa_id||null
   };
+}
+function rowToRemessa(r){
+  return {id:r.id, num:r.num, data:r.data, obs:r.obs||""};
 }
 function rowToPagamento(r){
   return {
@@ -828,7 +843,7 @@ function rowToEstoque(r){
   return {id:r.id, modeloId:r.modelo_id, tamanho:r.tamanho, genero:r.genero, qtd:r.qtd};
 }
 function rowToAporte(r){
-  return {id:r.id, loteId:r.pacote_id, usuarioId:r.usuario_id, valor:parseFloat(r.valor)||0, obs:r.obs||""};
+  return {id:r.id, loteId:r.pacote_id||null, remessaId:r.remessa_id||null, usuarioId:r.usuario_id, valor:parseFloat(r.valor)||0, obs:r.obs||""};
 }
 let _loadError = false;
 async function loadAll(){
@@ -842,7 +857,7 @@ async function loadAll(){
     return;
   }
   try{
-    const [r1,r2,r3,r4,r5,r6,r7,r8,r9] = await Promise.all([
+    const [r1,r2,r3,r4,r5,r6,r7,r8,r9,r10] = await Promise.all([
       _sb.from("pedidos").select("*"),
       _sb.from("pacotes").select("*"),
       _sb.from("pagamentos").select("*"),
@@ -852,8 +867,9 @@ async function loadAll(){
       _sb.from("usuarios").select("*"),
       _sb.from("estoque").select("*"),
       _sb.from("aportes").select("*"),
+      _sb.from("remessas").select("*"),
     ]);
-    const respostas = {pedidos:r1, pacotes:r2, pagamentos:r3, modelos:r4, produtos:r5, config:r6, usuarios:r7, estoque:r8, aportes:r9};
+    const respostas = {pedidos:r1, pacotes:r2, pagamentos:r3, modelos:r4, produtos:r5, config:r6, usuarios:r7, estoque:r8, aportes:r9, remessas:r10};
     const falhas = Object.entries(respostas).filter(([,r])=>r.error).map(([k])=>k);
     if(falhas.length){
       _loadError = true;
@@ -871,6 +887,7 @@ async function loadAll(){
     if(!r7.error) usuarios = (r7.data||[]).map(rowToUsuario);
     if(!r8.error) estoque  = (r8.data||[]).map(rowToEstoque);
     if(!r9.error) aportes  = (r9.data||[]).map(rowToAporte);
+    if(!r10.error) remessas = (r10.data||[]).map(rowToRemessa);
   }catch(e){
     _loadError = true;
     console.warn("Supabase load error:", e);
@@ -887,6 +904,7 @@ const hoje   = ()=>new Date().toISOString().slice(0,10);
 const getMod = id=>modelos.find(x=>x.id===id)||{label:id,cor:"#C9A84C"};
 const getProd= id=>produtos.find(x=>x.id===id)||{label:id,custoUSD:0,vendaBRL:0};
 const getLote= id=>lotes.find(x=>x.id===id)||null;
+const getRemessa= id=>remessas.find(x=>x.id===id)||null;
 const getPag = id=>pags.find(x=>x.pedidoId===id)||null;
 
 function calcCusto(prodId,loteId){
@@ -2025,7 +2043,12 @@ function renderDash(){
   var lucroSoc=lucroGeral/2;
   var resL=aporteL+lucroSoc-consL;
   var resT=aporteT+lucroSoc-consT;
+  var _defsDash=_deficitPacotes().concat(_deficitRemessas());
   $("dzSocios").innerHTML=
+    (_defsDash.length ? '<div class="dz-card" style="margin-bottom:12px;border-color:var(--or);"><div class="dz-ct"><span>⚠️ Aportes não batem</span><span class="tag" style="color:var(--or);">verificar</span></div>'+
+      _defsDash.map(function(d){return '<div class="dz-row"><span class="rl">'+d.label+'</span><span class="rv" style="color:var(--or);">'+(d.diff>0?'falta '+brl(d.diff):'excedente '+brl(-d.diff))+'</span></div>';}).join("")+
+      '<div class="dz-note">O total de aportes lançado em cada pacote (aba Transporte) deve bater com mercadoria + taxa. Corrija antes de confiar nos valores de retorno abaixo.</div>'+
+    '</div>' : '')+
     '<div class="dz-card" style="margin-bottom:12px;"><div class="dz-ct"><span>Capital investido (aportes)</span><span class="tag">a recuperar</span></div>'+
       '<div class="dz-row"><span class="rl">Aportado por <small>'+nL+'</small></span><span class="rv amb">'+brl(aporteL)+'</span></div>'+
       '<div class="dz-row"><span class="rl">Aportado por <small>'+nT+'</small></span><span class="rv amb">'+brl(aporteT)+'</span></div>'+
@@ -2148,7 +2171,12 @@ function renderInvest(){
     '<div class="dz-kpi g-gold"><div class="kl">Aporte total</div><div class="kv">'+brl(aporteTot)+'</div><div class="ks">lançado nos pacotes (veja Transporte)</div></div>'+
     '<div class="dz-kpi g-red"><div class="kl">Lucro geral</div><div class="kv">'+brl(lucroGeral)+'</div><div class="ks">'+vendas.length+' venda'+(vendas.length!==1?"s":"")+'</div></div>';
 
+  var _defsInv=_deficitPacotes().concat(_deficitRemessas());
   $("ivSocios").innerHTML=
+    (_defsInv.length ? '<div class="dz-card" style="margin-bottom:12px;border-color:var(--or);"><div class="dz-ct"><span>⚠️ Aportes não batem</span><span class="tag" style="color:var(--or);">verificar</span></div>'+
+      _defsInv.map(function(d){return '<div class="dz-row"><span class="rl">'+d.label+'</span><span class="rv" style="color:var(--or);">'+(d.diff>0?'falta '+brl(d.diff):'excedente '+brl(-d.diff))+'</span></div>';}).join("")+
+      '<div class="dz-note">O total de aportes lançado em cada pacote (aba Transporte) deve bater com mercadoria + taxa. Corrija antes de confiar nos valores de retorno abaixo.</div>'+
+    '</div>' : '')+
     '<div class="dz-grid2" style="margin-bottom:12px;">'+
       '<div class="dz-socio"><h4>🔴 '+nL+'</h4><div class="big">'+brl(resL)+'</div><div style="font-size:9px;color:var(--mu);margin-top:2px;margin-bottom:8px;">disponível pra saque</div>'+
         '<div class="dz-row"><span class="rl">Aporte a devolver</span><span class="rv">'+brl(aporteL)+'</span></div>'+
@@ -2502,12 +2530,22 @@ function renderTransp(){
         </div>`:""}
       </div>
 
+      <!-- Remessa (agrupamento de compra) -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <label style="font-size:9px;color:var(--mu);font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;">📦 Remessa de compra</label>
+        <select class="inp" style="flex:1;min-width:140px;font-size:11px;" onchange="atribuirRemessa('${l.id}',this.value)">
+          <option value="">— pacote independente —</option>
+          ${(remessas||[]).map(r=>`<option value="${r.id}" ${r.id===l.remessaId?"selected":""}>${r.num}</option>`).join("")}
+        </select>
+      </div>
+
       <!-- Investimento (aporte de capital por sócio) -->
       <div style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:12px 13px;margin-bottom:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:10px;font-weight:700;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;">💼 Investimento neste pacote</div>
+          <div style="font-size:10px;font-weight:700;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;">💼 ${l.remessaId?"Taxa deste pacote":"Investimento neste pacote"}</div>
           <span style="font-size:10px;color:var(--mu);" id="aporteTotal-${l.id}"></span>
         </div>
+        ${l.remessaId?`<div style="font-size:9.5px;color:var(--mu);margin-bottom:7px;">Mercadoria já coberta na <b>${(getRemessa(l.remessaId)||{}).num||"remessa"}</b> — aqui só a taxa de importação deste pacote.</div>`:""}
         <div id="aporteList-${l.id}"></div>
         <button class="btn ghost sm" onclick="addAporte('${l.id}')" style="margin-top:4px;">＋ Aporte</button>
         <div id="aporteResumo-${l.id}" style="font-size:9.5px;margin-top:7px;"></div>
@@ -2536,18 +2574,257 @@ function renderTransp(){
     </div>`;
   }).join("");
   lotes.forEach(l=>renderAportesLote(l.id));
+  renderRemessas();
 }
 
+function criarRemessa(){
+  const num = prompt("Nome/número da remessa (ex: Remessa 03):", "Remessa "+String((remessas||[]).length+1).padStart(2,"0"));
+  if(num===null) return;
+  const r = {id:"rem"+uid(), num: num.trim()||("Remessa "+((remessas||[]).length+1)), data: hoje(), obs:""};
+  remessas.push(r);
+  persist("ap6_rem", remessas);
+  renderRemessas();
+  toast("Remessa criada: "+r.num, true);
+}
+function delRemessa(remessaId){
+  const r = getRemessa(remessaId); if(!r) return;
+  const pacs = lotes.filter(l=>l.remessaId===remessaId);
+  if(!confirm("Excluir a "+r.num+"? Os "+pacs.length+" pacote(s) vinculados voltam a ser independentes (o aporte de mercadoria da remessa será perdido).")) return;
+  lotes.forEach(l=>{ if(l.remessaId===remessaId) l.remessaId=null; });
+  persist("ap6_lot", lotes);
+  aportes = aportes.filter(a=>a.remessaId!==remessaId);
+  persist("ap6_apt", aportes);
+  if(_sb) _sb.from("aportes").delete().eq("remessa_id",remessaId).then(()=>{});
+  remessas = remessas.filter(r2=>r2.id!==remessaId);
+  persist("ap6_rem", remessas);
+  if(_sb) _sb.from("remessas").delete().eq("id",remessaId).then(()=>{});
+  renderRemessas();
+  renderTransp();
+}
+function atribuirRemessa(loteId, remessaId){
+  const i = lotes.findIndex(l=>l.id===loteId);
+  if(i<0) return;
+  lotes[i].remessaId = remessaId || null;
+  persist("ap6_lot", lotes);
+  renderTransp();
+  renderRemessas();
+}
+
+function renderRemessas(){
+  const el = document.getElementById("remessasList"); if(!el) return;
+  if(!remessas || !remessas.length){
+    el.innerHTML = `<div style="font-size:10.5px;color:var(--mu);padding:4px 0;">Nenhuma remessa criada ainda. Use "＋ Nova remessa" quando comprar vários pacotes juntos do fornecedor.</div>`;
+    return;
+  }
+  el.innerHTML = remessas.map(r=>{
+    const pacs = lotes.filter(l=>l.remessaId===r.id);
+    const totalMerc = _totalRemessa(r.id);
+    const pecas = _pecasPorProdutoRemessa(r.id);
+    return `<div style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:12px 13px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--iv);">${r.num}</div>
+          <div style="font-size:10px;color:var(--mu);margin-top:1px;">${r.data||""} · ${pacs.length} pacote${pacs.length!==1?"s":""} · ${pacs.map(p=>p.num).join(", ")||"nenhum pacote vinculado"}</div>
+        </div>
+        <button class="btn danger sm" onclick="delRemessa('${r.id}')" style="flex-shrink:0;">✕</button>
+      </div>
+
+      <!-- Valor esperado, calculado peça a peça, pra validar com o fornecedor -->
+      <div style="background:var(--s1);border:1px solid var(--gold)44;border-radius:7px;padding:10px 12px;margin-bottom:10px;">
+        <div style="font-size:9.5px;font-weight:700;color:var(--gold);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">💰 Valor esperado (baseado nas peças)</div>
+        ${pecas.length?pecas.map(g=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;color:var(--mu);">
+          <span>${g.label} <small>${g.qtd} pç × ${brl(g.custoUnit)}</small></span>
+          <span style="color:var(--ink);font-weight:600;">${brl(g.subtotal)}</span>
+        </div>`).join(""):'<div style="font-size:10px;color:var(--mu);">Nenhuma peça lançada ainda nos pacotes desta remessa.</div>'}
+        <div style="display:flex;justify-content:space-between;border-top:1px solid var(--br);margin-top:6px;padding-top:6px;">
+          <span style="font-size:11.5px;font-weight:700;">Total esperado</span>
+          <span style="font-size:14px;font-weight:700;color:var(--gold);font-family:'JetBrains Mono',monospace;">${brl(totalMerc)}</span>
+        </div>
+        <div style="font-size:9px;color:var(--mu);margin-top:5px;">Compare com o valor cobrado pelo fornecedor. Se for diferente, confira quantidade, modelo (jogador/torcedor) ou a cotação usada.</div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:10px;font-weight:700;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;">💼 Aporte de mercadoria</div>
+        <span style="font-size:10px;color:var(--mu);" id="aporteRemTotal-${r.id}"></span>
+      </div>
+      <div id="aporteRemList-${r.id}"></div>
+      <button class="btn ghost sm" onclick="addAporteRemessa('${r.id}')" style="margin-top:4px;">＋ Aporte</button>
+      <div id="aporteRemResumo-${r.id}" style="font-size:9.5px;margin-top:7px;"></div>
+    </div>`;
+  }).join("");
+  remessas.forEach(r=>renderAportesRemessa(r.id));
+}
+
+function renderAportesRemessa(remessaId){
+  const el=document.getElementById("aporteRemList-"+remessaId); if(!el) return;
+  const r=getRemessa(remessaId); if(!r) return;
+  const rows=aportes.filter(a=>a.remessaId===remessaId);
+  const totalRemessa = _totalRemessa(remessaId);
+  const somaAportes = rows.reduce((a,x)=>a+(x.valor||0),0);
+  const diff = totalRemessa - somaAportes;
+  const {uL,uT} = _sociosLU();
+  const nL = uL?uL.nome:"Sócio 1", nT = uT?uT.nome:"Sócio 2";
+
+  const splitBar = (uL && uT) ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:7px 8px;background:var(--s1);border:1px dashed var(--br);border-radius:6px;">
+    <span style="font-size:10px;color:var(--mu);white-space:nowrap;">Divisão rápida:</span>
+    <button type="button" class="btn sm" onclick="aportarSplitRemessa('${remessaId}',100)" style="padding:3px 8px;">100% ${nL}</button>
+    <button type="button" class="btn sm" onclick="aportarSplitRemessa('${remessaId}',50)" style="padding:3px 8px;">50/50</button>
+    <button type="button" class="btn sm" onclick="aportarSplitRemessa('${remessaId}',0)" style="padding:3px 8px;">100% ${nT}</button>
+    <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--mu);white-space:nowrap;">
+      ou <input type="number" min="0" max="100" step="1" placeholder="% ${nL}" id="splitPctRem-${remessaId}" style="width:50px;font-size:11px;padding:3px 5px;border-radius:5px;border:1px solid var(--br);background:var(--bg);color:var(--ink);">
+      <button type="button" class="btn sm" onclick="aportarSplitCustomRemessa('${remessaId}')" style="padding:3px 8px;">aplicar %</button>
+    </span>
+  </div>` : `<div style="font-size:10px;color:var(--mu);margin-bottom:6px;">Cadastre os dois sócios em Config pra usar a divisão rápida.</div>`;
+
+  const listHtml = rows.length ? rows.map((a,i)=>{
+    return `<div style="display:flex;align-items:center;gap:6px;background:var(--s1);border:1px solid var(--br);border-radius:6px;padding:7px 8px;margin-bottom:5px;">
+      <select class="inp" style="flex:1;min-width:0;font-size:11px;" onchange="updAporteRemessa('${remessaId}',${i},'usuarioId',this.value)">
+        ${usuarios.map(us=>`<option value="${us.id}" ${us.id===a.usuarioId?"selected":""}>${us.nome}</option>`).join("")}
+      </select>
+      <div class="iu" style="width:110px;flex-shrink:0;">
+        <input class="inp" type="number" step="0.01" value="${a.valor}" style="font-size:11px;" onchange="updAporteRemessa('${remessaId}',${i},'valor',this.value)">
+        <span>R$</span>
+      </div>
+      <button class="btn danger sm" onclick="delAporteRemessa('${remessaId}',${i})" style="padding:3px 7px;flex-shrink:0;">✕</button>
+    </div>`;
+  }).join("") : `<div style="font-size:10.5px;color:var(--mu);padding:4px 0;">Nenhum aporte lançado ainda pra esta remessa.</div>`;
+
+  el.innerHTML = splitBar + listHtml;
+
+  const totalEl=document.getElementById("aporteRemTotal-"+remessaId);
+  if(totalEl) totalEl.textContent = "total (mercadoria) "+brl(totalRemessa);
+  const resumoEl=document.getElementById("aporteRemResumo-"+remessaId);
+  if(resumoEl){
+    if(Math.abs(diff)<0.01){
+      resumoEl.style.color="var(--gr)";
+      resumoEl.textContent = "✓ "+brl(somaAportes)+" lançado — bate com o total da remessa";
+    } else if(diff>0){
+      resumoEl.style.color="var(--or)";
+      resumoEl.textContent = brl(somaAportes)+" lançado de "+brl(totalRemessa)+" · falta alocar "+brl(diff);
+    } else {
+      resumoEl.style.color="var(--or)";
+      resumoEl.textContent = brl(somaAportes)+" lançado de "+brl(totalRemessa)+" · excedente de "+brl(-diff)+" (reduza algum valor)";
+    }
+  }
+}
+function _setAporteSocioRemessa(remessaId, usuarioId, valor){
+  if(!usuarioId) return;
+  const arred = Math.round(valor*100)/100;
+  let row = aportes.find(a=>a.remessaId===remessaId && a.usuarioId===usuarioId);
+  if(row){ row.valor = arred; }
+  else { aportes.push({id:"apt"+uid(), remessaId, loteId:null, usuarioId, valor:arred, obs:""}); }
+}
+function aportarSplitRemessa(remessaId, pctL){
+  const {uL,uT} = _sociosLU();
+  if(!uL||!uT){ toast("Cadastre os dois sócios em Config antes de usar a divisão rápida.", false); return; }
+  const total = _totalRemessa(remessaId);
+  const valL = total * (pctL/100);
+  const valT = total - valL;
+  _setAporteSocioRemessa(remessaId, uL.id, valL);
+  _setAporteSocioRemessa(remessaId, uT.id, valT);
+  persist("ap6_apt", aportes);
+  renderAportesRemessa(remessaId);
+  toast("Divisão aplicada: "+pctL+"% / "+(100-pctL)+"%", true);
+}
+function aportarSplitCustomRemessa(remessaId){
+  const input = document.getElementById("splitPctRem-"+remessaId);
+  if(!input) return;
+  let pctL = parseFloat(input.value);
+  if(isNaN(pctL)){ toast("Informe uma porcentagem válida.", false); return; }
+  pctL = Math.max(0, Math.min(100, pctL));
+  aportarSplitRemessa(remessaId, pctL);
+}
+function addAporteRemessa(remessaId){
+  aportes.push({id:"apt"+uid(), remessaId, loteId:null, usuarioId:(usuarios[0]||{}).id||"", valor:0, obs:""});
+  persist("ap6_apt", aportes);
+  renderAportesRemessa(remessaId);
+}
+function updAporteRemessa(remessaId, idx, field, value){
+  const rows=aportes.filter(a=>a.remessaId===remessaId);
+  const alvo=rows[idx]; if(!alvo) return;
+  const real=aportes.find(a=>a===alvo);
+  if(field==="valor") real.valor=parseFloat(value)||0;
+  if(field==="usuarioId") real.usuarioId=value;
+  persist("ap6_apt", aportes);
+  renderAportesRemessa(remessaId);
+}
+function delAporteRemessa(remessaId, idx){
+  const rows=aportes.filter(a=>a.remessaId===remessaId);
+  const alvo=rows[idx]; if(!alvo) return;
+  aportes=aportes.filter(a=>a!==alvo);
+  persist("ap6_apt", aportes);
+  if(_sb) _sb.from("aportes").delete().eq("id",alvo.id).then(()=>{});
+  renderAportesRemessa(remessaId);
+}
+
+function _sociosLU(){
+  const socU=(usuarios||[]).filter(u=>/s[oó]cio/i.test(u.cargo||""));
+  const uL=socU.find(u=>/lucas/i.test(u.nome))||socU[0]||null;
+  const uT=socU.find(u=>/thiago/i.test(u.nome))||socU[1]||null;
+  return {uL,uT};
+}
+function _custoMercPacote(loteId){
+  return pedidos.filter(p=>p.loteId===loteId).reduce((a,p)=>a+(getProd(p.prodId).custoUSD||0)*(cfg.cotacao||0)*(p.qtd||1),0);
+}
+function _totalPacote(loteId){
+  const l=getLote(loteId); if(!l) return 0;
+  const merc = _custoMercPacote(loteId);
+  // Se o pacote pertence a uma Remessa, a mercadoria já foi aportada lá —
+  // o "aporte" deste pacote cobre só a taxa de importação (que chega separada por pacote).
+  if(l.remessaId) return (l.taxa||0);
+  return merc + (l.taxa||0);
+}
+function _totalRemessa(remessaId){
+  return (lotes||[]).filter(l=>l.remessaId===remessaId).reduce((a,l)=>a+_custoMercPacote(l.id),0);
+}
+function _pecasPorProdutoRemessa(remessaId){
+  const loteIds = (lotes||[]).filter(l=>l.remessaId===remessaId).map(l=>l.id);
+  const peds = (pedidos||[]).filter(p=>loteIds.indexOf(p.loteId)>=0);
+  const groups = {};
+  peds.forEach(p=>{
+    const prod = getProd(p.prodId);
+    const key = p.prodId||"—";
+    if(!groups[key]) groups[key] = {prodId:key, label:prod.label||key, qtd:0, custoUnit:(prod.custoUSD||0)*(cfg.cotacao||0)};
+    groups[key].qtd += (p.qtd||1);
+  });
+  return Object.keys(groups).map(k=>{const g=groups[k]; return {prodId:g.prodId, label:g.label, qtd:g.qtd, custoUnit:g.custoUnit, subtotal:g.qtd*g.custoUnit};});
+}
+function _deficitPacotes(){
+  return (lotes||[]).map(function(l){
+    const total = _totalPacote(l.id);
+    const soma = (aportes||[]).filter(function(a){return a.loteId===l.id;}).reduce(function(a,x){return a+(x.valor||0);},0);
+    return {label:"Pacote "+l.num, diff: Math.round((total-soma)*100)/100};
+  }).filter(function(d){return Math.abs(d.diff)>=0.01;});
+}
+function _deficitRemessas(){
+  return (remessas||[]).map(function(r){
+    const total = _totalRemessa(r.id);
+    const soma = (aportes||[]).filter(function(a){return a.remessaId===r.id;}).reduce(function(a,x){return a+(x.valor||0);},0);
+    return {label:"Remessa "+r.num, diff: Math.round((total-soma)*100)/100};
+  }).filter(function(d){return Math.abs(d.diff)>=0.01;});
+}
 function renderAportesLote(loteId){
   const el=document.getElementById("aporteList-"+loteId); if(!el) return;
   const l=getLote(loteId); if(!l) return;
   const rows=aportes.filter(a=>a.loteId===loteId);
-  const custoMercPacote = pedidos.filter(p=>p.loteId===loteId).reduce((a,p)=>a+(getProd(p.prodId).custoUSD||0)*(cfg.cotacao||0)*(p.qtd||1),0);
-  const totalPacote = custoMercPacote + (l.taxa||0);
+  const totalPacote = _totalPacote(loteId);
   const somaAportes = rows.reduce((a,r)=>a+(r.valor||0),0);
   const diff = totalPacote - somaAportes;
+  const {uL,uT} = _sociosLU();
+  const nL = uL?uL.nome:"Sócio 1", nT = uT?uT.nome:"Sócio 2";
 
-  el.innerHTML = rows.length ? rows.map((a,i)=>{
+  const splitBar = (uL && uT) ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:7px 8px;background:var(--s1);border:1px dashed var(--br);border-radius:6px;">
+    <span style="font-size:10px;color:var(--mu);white-space:nowrap;">Divisão rápida:</span>
+    <button type="button" class="btn sm" onclick="aportarSplit('${loteId}',100)" style="padding:3px 8px;">100% ${nL}</button>
+    <button type="button" class="btn sm" onclick="aportarSplit('${loteId}',50)" style="padding:3px 8px;">50/50</button>
+    <button type="button" class="btn sm" onclick="aportarSplit('${loteId}',0)" style="padding:3px 8px;">100% ${nT}</button>
+    <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--mu);white-space:nowrap;">
+      ou <input type="number" min="0" max="100" step="1" placeholder="% ${nL}" id="splitPct-${loteId}" style="width:50px;font-size:11px;padding:3px 5px;border-radius:5px;border:1px solid var(--br);background:var(--bg);color:var(--ink);">
+      <button type="button" class="btn sm" onclick="aportarSplitCustom('${loteId}')" style="padding:3px 8px;">aplicar %</button>
+    </span>
+  </div>` : `<div style="font-size:10px;color:var(--mu);margin-bottom:6px;">Cadastre os dois sócios em Config pra usar a divisão rápida.</div>`;
+
+  const listHtml = rows.length ? rows.map((a,i)=>{
     const u = usuarios.find(x=>x.id===a.usuarioId);
     return `<div style="display:flex;align-items:center;gap:6px;background:var(--s1);border:1px solid var(--br);border-radius:6px;padding:7px 8px;margin-bottom:5px;">
       <select class="inp" style="flex:1;min-width:0;font-size:11px;" onchange="updAporte('${loteId}',${i},'usuarioId',this.value)">
@@ -2561,6 +2838,8 @@ function renderAportesLote(loteId){
     </div>`;
   }).join("") : `<div style="font-size:10.5px;color:var(--mu);padding:4px 0;">Nenhum aporte lançado ainda pra este pacote.</div>`;
 
+  el.innerHTML = splitBar + listHtml;
+
   const totalEl=document.getElementById("aporteTotal-"+loteId);
   if(totalEl) totalEl.textContent = "total do pacote "+brl(totalPacote);
   const resumoEl=document.getElementById("aporteResumo-"+loteId);
@@ -2568,11 +2847,41 @@ function renderAportesLote(loteId){
     if(Math.abs(diff)<0.01){
       resumoEl.style.color="var(--gr)";
       resumoEl.textContent = "✓ "+brl(somaAportes)+" lançado — bate com o total do pacote";
-    } else {
+    } else if(diff>0){
       resumoEl.style.color="var(--or)";
       resumoEl.textContent = brl(somaAportes)+" lançado de "+brl(totalPacote)+" · falta alocar "+brl(diff);
+    } else {
+      resumoEl.style.color="var(--or)";
+      resumoEl.textContent = brl(somaAportes)+" lançado de "+brl(totalPacote)+" · excedente de "+brl(-diff)+" (reduza algum valor)";
     }
   }
+}
+function _setAporteSocio(loteId, usuarioId, valor){
+  if(!usuarioId) return;
+  const arred = Math.round(valor*100)/100;
+  let row = aportes.find(a=>a.loteId===loteId && a.usuarioId===usuarioId);
+  if(row){ row.valor = arred; }
+  else { aportes.push({id:"apt"+uid(), loteId, usuarioId, valor:arred, obs:""}); }
+}
+function aportarSplit(loteId, pctL){
+  const {uL,uT} = _sociosLU();
+  if(!uL||!uT){ toast("Cadastre os dois sócios em Config antes de usar a divisão rápida.", false); return; }
+  const total = _totalPacote(loteId);
+  const valL = total * (pctL/100);
+  const valT = total - valL;
+  _setAporteSocio(loteId, uL.id, valL);
+  _setAporteSocio(loteId, uT.id, valT);
+  persist("ap6_apt", aportes);
+  renderAportesLote(loteId);
+  toast("Divisão aplicada: "+pctL+"% / "+(100-pctL)+"%", true);
+}
+function aportarSplitCustom(loteId){
+  const input = document.getElementById("splitPct-"+loteId);
+  if(!input) return;
+  let pctL = parseFloat(input.value);
+  if(isNaN(pctL)){ toast("Informe uma porcentagem válida.", false); return; }
+  pctL = Math.max(0, Math.min(100, pctL));
+  aportarSplit(loteId, pctL);
 }
 function addAporte(loteId){
   aportes.push({id:"apt"+uid(), loteId, usuarioId:(usuarios[0]||{}).id||"", valor:0, obs:""});
